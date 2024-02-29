@@ -7,4 +7,5 @@ import sys
 
 
 protocol = Protocol("./sample.yaml")
-protocol.save(sys.stdout)
+print(list(protocol.connections()))
+# protocol.save(sys.stdout)

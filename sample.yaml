@@ -1,10 +1,10 @@
-- input:
+input:
   - id: volume
     type: Array[Float]
-- output:
+output:
   - id: data
     type: Array[Float]
-- operations:
+operations:
   - id: serve_plate1
     type: Plate96
   - id: dispense_liquid1
@@ -13,7 +13,7 @@
     type: ReadAbsorbance3Colors
   - id: store_labware1
     type: StoreLabware
-- connections:
+connections:
   - input:
       - input
       - volume
