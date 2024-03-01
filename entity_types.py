@@ -102,6 +102,10 @@ def is_object(one):
 def is_data(one):
     return is_acceptable(one, Any[Data])
 
+def first_arg(x):
+    assert isinstance(x, typing._GenericAlias), str(x)
+    return x.__args__[0]
+
 
 if __name__ == "__main__":
     class Labware(Object): pass
