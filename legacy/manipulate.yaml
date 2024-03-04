@@ -1,0 +1,94 @@
+nodes:
+  # - id: Serve
+  - id: Plate96
+    output:
+      - id: value
+        type: Plate96
+  - id: StoreLabware
+    input:
+      - id: in1
+        type: Labware
+        expand: True
+        optional: True
+      - id: where
+        type: String
+        default:
+          value: where
+          type: String
+  - id: StoreArtifacts
+    input:
+      - id: in1
+        type: Any[Data]
+        optional: True
+      - id: where
+        type: String
+        default:
+          value: where
+          type: String
+  - id: DispenseLiquid96Wells
+    input:
+      - id: in1
+        type: Plate96
+        expand: True
+        optional: True
+      - id: channel
+        type: Integer | LiquidClass
+        expand: True
+        free: True
+        default:
+          value: 0
+          type: Integer
+      - id: volume
+        type: Array[Real]
+        expand: True
+    output:
+      - id: out1
+        type: Plate96
+        expand: True
+        optional: True
+  - id: TransferLiquid96Wells
+    input:
+      - id: in1
+        type: Plate96
+        expand: True
+        optional: True
+      - id: in2
+        type: Plate96
+        expand: True
+        optional: True
+      - id: src
+        expand: True
+        type: Integer
+      - id: dst
+        expand: True
+        type: Integer
+      - id: volume
+        expand: True
+        type: Real
+    output:
+      - id: out1
+        type: Plate96
+        expand: True
+        expression: in1
+        optional: True
+      - id: out2
+        type: Plate96
+        expand: True
+        expression: in2
+        optional: True
+  - id: ReadAbsorbance3Colors
+    input:
+      - id: in1
+        type: Plate96
+        expand: True
+        optional: True
+    output:
+      - id: out1
+        type: Plate96
+        expand: True
+        optional: True
+        expression: in1
+      - id: value
+        type: Spread[Array[Float]]
+        expand: True
+        optional: True
