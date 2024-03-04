@@ -1,48 +1,46 @@
-entity_type:
-  - id: Labware
-    ref: Object
-  - id: Plate96
-    ref: Labware
-  - id: Number
-    ref: Data
-  - id: Float
-    ref: Number
-  - id: Integer
-    ref: Number
-operation:
-  - id: ServePlate96
-    output:
-      - id: value
-        type: Plate96
-  - id: StoreLabware
-    input:
-      - id: in1
-        type: Labware
-      - id: where
+- id: Labware
+  ref: Object
+- id: Plate96
+  ref: Labware
+- id: Number
+  ref: Data
+- id: Float
+  ref: Number
+- id: Integer
+  ref: Number
+- id: ServePlate96
+  output:
+    - id: value
+      type: Plate96
+- id: StoreLabware
+  input:
+    - id: in1
+      type: Labware
+    - id: where
+      type: String
+      default:
+        value: ""
         type: String
-        default:
-          value: ""
-          type: String
-  - id: DispenseLiquid96Wells
-    input:
-      - id: in1
-        type: Plate96
-      - id: channel
+- id: DispenseLiquid96Wells
+  input:
+    - id: in1
+      type: Plate96
+    - id: channel
+      type: Integer
+      default:
+        value: 0
         type: Integer
-        default:
-          value: 0
-          type: Integer
-      - id: volume
-        type: Array[Float]
-    output:
-      - id: out1
-        type: Plate96
-  - id: ReadAbsorbance3Colors
-    input:
-      - id: in1
-        type: Plate96
-    output:
-      - id: out1
-        type: Plate96
-      - id: value
-        type: Spread[Array[Float]]
+    - id: volume
+      type: Array[Float]
+  output:
+    - id: out1
+      type: Plate96
+- id: ReadAbsorbance3Colors
+  input:
+    - id: in1
+      type: Plate96
+  output:
+    - id: out1
+      type: Plate96
+    - id: value
+      type: Spread[Array[Float]]

@@ -43,6 +43,9 @@ class Object(EntityType): pass
 class Data(EntityType): pass
 class Array(Data, typing.Generic[typing.TypeVar("T")]): pass
 
+# def get_primitive_type_by_id(id: str) -> EntityType | None:
+#     return {"Data": Data, "Object": Object}.get(id, None)
+
 def is_union(x):
     return isinstance(x, types.UnionType) or isinstance(x, typing._UnionGenericAlias)
 

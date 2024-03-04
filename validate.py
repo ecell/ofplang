@@ -6,10 +6,11 @@ logger = getLogger(__name__)
 
 import itertools
 
+from definitions import Definitions
 from protocol import Protocol
 
 
-def check_protocol(protocol: Protocol) -> None:
+def check_protocol(protocol: Protocol, definitions: Definitions | None = None) -> None:
     check_unique_id(protocol)
     check_connection_port_exists(protocol)
 

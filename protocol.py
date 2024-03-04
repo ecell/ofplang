@@ -4,7 +4,7 @@ from logging import getLogger
 
 logger = getLogger(__name__)
 
-from typing import Union, Optional, Iterator, NamedTuple
+from typing import Iterator, NamedTuple
 import pathlib, io, dataclasses
 import yaml
 
@@ -24,13 +24,13 @@ class PortConnection:
 
 class Protocol:
 
-    def __init__(self, file: Optional[Union[str, pathlib.PurePath, io.IOBase]]) -> None:
+    def __init__(self, file: str | pathlib.PurePath | io.IOBase | None) -> None:
         self.__data = None
 
         if file is not None:
             self.load(file)
 
-    def load(self, file: Union[str, pathlib.PurePath, io.IOBase]) -> None:
+    def load(self, file: str | pathlib.PurePath | io.IOBase | None) -> None:
         if isinstance(file, str):
             with pathlib.Path(file).open() as f:
                 self.__load(f)
@@ -45,7 +45,7 @@ class Protocol:
     def __load(self, file: io.IOBase) -> None:
         self.__data = yaml.load(file, Loader=yaml.Loader)
 
-    def save(self, file: Union[str, pathlib.PurePath, io.IOBase]) -> None:
+    def save(self, file: str | pathlib.PurePath | io.IOBase) -> None:
         if isinstance(file, str):
             with pathlib.Path(file).open('w') as f:
                 self.__save(f)
