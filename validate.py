@@ -93,11 +93,39 @@ def check_operation_types(protocol: Protocol, definitions: Definitions) -> None:
     assert is_valid, "Invalid operation type."
 
 def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
-    operation_types = {}
-    for entity in protocol.operations():
-        operation_types[entity.id] = definitions.get_by_name(entity.type)
+    import entity_type
+    type_checker = entity_type.TypeChecker(definitions)
 
     is_valid = True
+
+    operation_types = {}
+    for entity in protocol.operations():
+        definition = definitions.get_by_name(entity.type)
+        operation_types[entity.id] = definition
+
+        for port in definition.get("input", []):
+            cnt = 0
+            for connection in protocol.connections():
+                if connection.output == (entity.id, port["id"]):
+                    cnt += 1
+            if cnt == 0 and "default" not in port:
+                logger.error(f"Missing connection [{(entity.id, port['id'])}]")
+                is_valid = False
+
+        for port in definition.get("output", []):
+            if type_checker.is_data(port["type"]):
+                continue
+            cnt = 0
+            for connection in protocol.connections():
+                if connection.input == (entity.id, port["id"]):
+                    cnt += 1
+            if cnt == 0:
+                logger.error(f"Missing connection [{(entity.id, port['id'])}]")
+                is_valid = False
+            elif cnt > 1:
+                logger.error(f"More than 1 connections found [{(entity.id, port['id'])}]")
+                is_valid = False
+
     port_types = {}
     for connection in protocol.connections():
         if connection.input.operation_id in operation_types:
@@ -128,8 +156,7 @@ def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
                     output_port = port.type
                     break
         
-        #XXX:
-        if input_port != output_port:
+        if not type_checker.is_acceptable(input_port, output_port):
             logger.error(f"Type mismatch [{input_port} != {output_port}] in [{connection}]")
             is_valid = False
 

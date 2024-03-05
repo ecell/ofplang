@@ -34,7 +34,7 @@ class Definitions:
     def get_by_name(self, name: str) -> dict:
         for x in self.__data:
             if x["name"] == name:
-                return x.copy()
+                return x.copy()  #XXX: deepcopy?
         raise ValueError(f"Unknown name [{name}]")
 
     def has(self, name: str) -> bool:
@@ -42,3 +42,7 @@ class Definitions:
             if x["name"] == name:
                 return True
         return False
+
+    def __iter__(self):
+        for x in self.__data:
+            yield x.copy()  #XXX: deepcopy?

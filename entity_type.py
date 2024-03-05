@@ -7,62 +7,20 @@ logger = getLogger(__name__)
 import typing, types, inspect
 
 
-class _EntityTypeMeta(type):
-    
-    def __instancecheck__(self, obj):
-        return super().__instancecheck__(obj)
-
-    def __repr__(self):
-        return f'{self.__module__}.{self.__qualname__}'
-        # return super().__repr__()  # respect to subclasses
-
-class EntityType(metaclass=_EntityTypeMeta):
-    pass
-
-class Any(EntityType, typing.Generic[typing.TypeVar("T")]): pass
-class Spread(EntityType, typing.Generic[typing.TypeVar("T")]): pass
-class Optional(EntityType, typing.Generic[typing.TypeVar("T")]): pass
-
-# Ref typing._TupleType
-class _StructType(typing._SpecialGenericAlias, _root=True):
-    @typing._tp_cache
-    def __getitem__(self, params):
-        if not isinstance(params, tuple):
-            params = (params,)
-        if len(params) >= 2 and params[-1] is ...:
-            msg = "Struct[t, ...]: t must be a type."
-            params = tuple(typing._type_check(p, msg) for p in params[:-1])
-            return self.copy_with((*params, typing._TypingEllipsis))
-        msg = "Struct[t0, t1, ...]: each t must be a type."
-        params = tuple(typing._type_check(p, msg) for p in params)
-        return self.copy_with(params)
-class _Struct(EntityType): pass
-Struct = _StructType(_Struct, -1, inst=False, name='Struct')
-
+class EntityType(type): pass
 class Object(EntityType): pass
 class Data(EntityType): pass
-class Array(Data, typing.Generic[typing.TypeVar("T")]): pass
+class Operation(type): pass  #XXX
 
-# def get_primitive_type_by_id(id: str) -> EntityType | None:
-#     return {"Data": Data, "Object": Object}.get(id, None)
+class Spread(typing.Generic[typing.TypeVar("T")]): pass
+class Optional(typing.Generic[typing.TypeVar("T")]): pass  # Do not use `T | None`. Use `Optional` instead.
+class Array(typing.Generic[typing.TypeVar("D")]): pass
 
 def is_union(x):
     return isinstance(x, types.UnionType) or isinstance(x, typing._UnionGenericAlias)
 
-def is_any(x):
-    return isinstance(x, typing._GenericAlias) and x.__origin__ == Any
-
-def is_spread(x):
-    return isinstance(x, typing._GenericAlias) and x.__origin__ == Spread
-
-def is_optional(x):
-    return isinstance(x, typing._GenericAlias) and x.__origin__ == Optional
-
-def is_struct(x):
-    return x is Struct or isinstance(x, typing._GenericAlias) and x.__origin__ == _Struct
-
-def is_array(x):
-    return isinstance(x, typing._GenericAlias) and x.__origin__ == Array
+def is_generic(x):
+    return isinstance(x, typing._GenericAlias) and x.__origin__ in (Spread, Optional, Array)
 
 def is_acceptable(one, another) -> bool:
     # Union
@@ -72,49 +30,75 @@ def is_acceptable(one, another) -> bool:
         return any(is_acceptable(one, x) for x in another.__args__)
 
     # typing._GenericAlias
-    if isinstance(one, typing._GenericAlias) and isinstance(another, typing._GenericAlias):
-        if another.__origin__ == Any:
-            # assert len(one.__args__) == 1, f"{one}"  #FIXME:
-            # return is_acceptable(one.__args__[0], another)
-            return any(is_acceptable(x, another) for x in one.__args__)
-        else:
+    if is_generic(one):
+        if is_generic(another):
             return (
                 is_acceptable(one.__origin__, another.__origin__)
                 and len(one.__args__) == len(another.__args__)
                 and all(is_acceptable(x, y) for x, y in zip(one.__args__, another.__args__))
             )
-    elif isinstance(one, typing._GenericAlias) and not isinstance(another, typing._GenericAlias):
-        assert inspect.isclass(another), f"{another}"
-        return issubclass(one.__origin__, another)
-    elif not isinstance(one, typing._GenericAlias) and isinstance(another, typing._GenericAlias):
-        assert inspect.isclass(one), f"{one}"
-        if another.__origin__ == Any:
-            assert len(another.__args__) == 1, f"{another}"
-            return is_acceptable(one, another.__args__[0])
         else:
+            assert inspect.isclass(another), f"{another}"
+            return issubclass(one.__origin__, another)
+    else:
+        if is_generic(another):
+            assert inspect.isclass(one), f"{one}"
             return False
-
-    # class
-    assert inspect.isclass(one), f"{one}"
-    assert inspect.isclass(another), f"{another}"
-    return issubclass(one, another)
+        else:
+            # class
+            assert inspect.isclass(one), f"{one}"
+            assert inspect.isclass(another), f"{another}"
+            return issubclass(one, another)
+    assert False, "Never get here."
 
 def is_object(one):
-    return is_acceptable(one, Any[Object])
+    if is_union(one) or is_generic(one):
+        return any(is_object(x) for x in one.__args__)
+    return issubclass(one, Object)
 
 def is_data(one):
-    return is_acceptable(one, Any[Data])
+    if is_union(one) or is_generic(one):
+        return all(is_data(x) for x in one.__args__)
+    return issubclass(one, Data)
 
-def first_arg(x):
-    assert isinstance(x, typing._GenericAlias), str(x)
-    return x.__args__[0]
+import definitions
+
+class TypeChecker:
+
+    def __init__(self, definitions: definitions.Definitions) -> None:
+        self.__definitions = definitions
+
+        self.__load_entity_types()
+    
+    def __load_entity_types(self) -> None:
+        self.__primitive_types = {
+            "Object": Object,
+            "Data": Data,
+            "Operation": Operation,
+            "Spread": Spread,
+            "Optional": Optional,
+            "Array": Array
+            }
+        
+        for x in self.__definitions:
+            name, ref = x["name"], x["ref"]
+            self.__primitive_types[name] = type(name, (self.__primitive_types[ref], ), {})
+
+    def eval_entity_type(self, expression: str) -> type:
+        return eval(expression, {"__builtins__": None}, self.__primitive_types)
+
+    def is_data(self, one: str) -> bool:
+        return is_data(self.eval_entity_type(one))
+
+    def is_acceptable(self, one: str, another: str) -> bool:
+        return is_acceptable(self.eval_entity_type(one), self.eval_entity_type(another))
 
 
 if __name__ == "__main__":
     class Labware(Object): pass
 
-    assert is_acceptable(Array, Data)
-    assert not is_acceptable(Array, Object)
+    # assert is_acceptable(Array, Data)
+    # assert not is_acceptable(Array, Object)
     assert is_acceptable(Array, Labware | Array)
     assert not is_acceptable(Labware | Array, Array)
 
@@ -123,8 +107,8 @@ if __name__ == "__main__":
     assert is_acceptable(Spread[Array], Spread[Array])
     assert is_acceptable(Spread[Array], Spread[Labware | Array])
     assert is_acceptable(Spread[Array], Spread[Array])
-    assert not is_acceptable(Spread[Array], Data)
-    assert is_acceptable(Spread[Array], Spread[Data])
+    # assert not is_acceptable(Spread[Array], Data)
+    # assert is_acceptable(Spread[Array], Spread[Data])
     assert is_acceptable(Spread[Labware], Spread)
     assert not is_acceptable(Spread[Labware], Object)
     assert is_acceptable(Spread[Labware], Spread[Object])
@@ -163,14 +147,6 @@ if __name__ == "__main__":
     assert not is_data(Spread[Labware])
     assert not is_data(Optional[Labware])
     assert is_object(Spread[Optional[Labware]])
-    assert not is_object(Spread[Spread[Labware | Float]])
-    assert not is_object(Spread[Float | Spread[Labware]])
+    assert is_object(Spread[Spread[Labware | Float]])
+    assert is_object(Spread[Float | Spread[Labware]])
     assert is_data(Spread[Float | Array[Integer]])
-
-    assert is_struct(Struct)
-    assert is_struct(Struct[Labware])
-    assert is_acceptable(Struct[Labware, Array[Float]], _Struct)  #XXX:
-    assert is_acceptable(Struct[Labware, Array[Float]], Struct[Labware, Array])
-    assert not is_acceptable(Struct[Labware, Array[Float]], Struct[Labware])
-    assert is_object(Struct[Labware, Array[Float]])
-    assert is_data(Struct[Labware, Array[Float]])
