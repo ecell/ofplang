@@ -23,7 +23,7 @@ class Any(EntityType, typing.Generic[typing.TypeVar("T")]): pass
 class Spread(EntityType, typing.Generic[typing.TypeVar("T")]): pass
 class Optional(EntityType, typing.Generic[typing.TypeVar("T")]): pass
 
-# See typing._TupleType
+# Ref typing._TupleType
 class _StructType(typing._SpecialGenericAlias, _root=True):
     @typing._tp_cache
     def __getitem__(self, params):

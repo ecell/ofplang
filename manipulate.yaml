@@ -1,19 +1,19 @@
-- id: Labware
+- name: Labware
   ref: Object
-- id: Plate96
+- name: Plate96
   ref: Labware
-- id: Number
+- name: Number
   ref: Data
-- id: Float
+- name: Float
   ref: Number
-- id: Integer
+- name: Integer
   ref: Number
-- id: ServePlate96
+- name: ServePlate96
   ref: Operation
   output:
     - id: value
       type: Plate96
-- id: StoreLabware
+- name: StoreLabware
   ref: Operation
   input:
     - id: in1
@@ -23,7 +23,7 @@
       default:
         value: ""
         type: String
-- id: DispenseLiquid96Wells
+- name: DispenseLiquid96Wells
   ref: Operation
   input:
     - id: in1
@@ -38,7 +38,7 @@
   output:
     - id: out1
       type: Plate96
-- id: ReadAbsorbance3Colors
+- name: ReadAbsorbance3Colors
   ref: Operation
   input:
     - id: in1

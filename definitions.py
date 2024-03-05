@@ -31,14 +31,14 @@ class Definitions:
     def __load(self, file: io.IOBase) -> None:
         self.__data = yaml.load(file, Loader=yaml.Loader)
 
-    def get_by_id(self, id: str) -> dict:
+    def get_by_name(self, name: str) -> dict:
         for x in self.__data:
-            if x["id"] == id:
+            if x["name"] == name:
                 return x.copy()
-        raise ValueError(f"Unknown id [{id}]")
+        raise ValueError(f"Unknown name [{name}]")
 
-    def has(self, id: str) -> bool:
+    def has(self, name: str) -> bool:
         for x in self.__data:
-            if x["id"] == id:
+            if x["name"] == name:
                 return True
         return False

@@ -63,7 +63,7 @@ def check_operation_types(protocol: Protocol, definitions: Definitions) -> None:
             logger.error(f"Unknown operation type [{entity.type}].")
             is_valid = False
             continue
-        definition = definitions.get_by_id(entity.type)
+        definition = definitions.get_by_name(entity.type)
         if definition.get("ref") != "Operation":
             logger.error(f"Wrong operation type [{entity.type}].")
             is_valid = False
@@ -95,7 +95,7 @@ def check_operation_types(protocol: Protocol, definitions: Definitions) -> None:
 def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
     operation_types = {}
     for entity in protocol.operations():
-        operation_types[entity.id] = definitions.get_by_id(entity.type)
+        operation_types[entity.id] = definitions.get_by_name(entity.type)
 
     is_valid = True
     port_types = {}
