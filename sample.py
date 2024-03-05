@@ -9,7 +9,6 @@ import sys
 
 
 definitions = Definitions('./manipulate.yaml')
-print(definitions.get_by_id("Plate96"))
 
 protocol = Protocol("./sample.yaml")
 print(list(protocol.connections()))

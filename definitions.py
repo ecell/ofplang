@@ -36,3 +36,9 @@ class Definitions:
             if x["id"] == id:
                 return x.copy()
         raise ValueError(f"Unknown id [{id}]")
+
+    def has(self, id: str) -> bool:
+        for x in self.__data:
+            if x["id"] == id:
+                return True
+        return False

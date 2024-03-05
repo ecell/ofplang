@@ -9,10 +9,12 @@
 - id: Integer
   ref: Number
 - id: ServePlate96
+  ref: Operation
   output:
     - id: value
       type: Plate96
 - id: StoreLabware
+  ref: Operation
   input:
     - id: in1
       type: Labware
@@ -22,6 +24,7 @@
         value: ""
         type: String
 - id: DispenseLiquid96Wells
+  ref: Operation
   input:
     - id: in1
       type: Plate96
@@ -36,6 +39,7 @@
     - id: out1
       type: Plate96
 - id: ReadAbsorbance3Colors
+  ref: Operation
   input:
     - id: in1
       type: Plate96

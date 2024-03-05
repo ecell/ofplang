@@ -3,10 +3,10 @@ input:
     type: Array[Float]
 output:
   - id: data
-    type: Array[Float]
+    type: Spread[Array[Float]]
 operations:
   - id: serve_plate1
-    type: Plate96
+    type: ServePlate96
   - id: dispense_liquid1
     type: DispenseLiquid96Wells
   - id: read_absorbance1
@@ -40,7 +40,7 @@ connections:
       - in1
   - input:
       - read_absorbance1
-      - data
+      - value
     output:
       - output
       - data
