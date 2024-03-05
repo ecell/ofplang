@@ -61,6 +61,12 @@ def is_data(one):
         return all(is_data(x) for x in one.__args__)
     return issubclass(one, Data)
 
+def check_entity_type(one):
+    if is_union(one) or is_generic(one):
+        tuple(check_entity_type(x) for x in one.__args__)
+    else:
+        assert issubclass(one, (EntityType, ))
+
 import definitions
 
 class TypeChecker:
@@ -82,10 +88,13 @@ class TypeChecker:
         
         for x in self.__definitions:
             name, ref = x["name"], x["ref"]
+            assert name not in self.__primitive_types, name
             self.__primitive_types[name] = type(name, (self.__primitive_types[ref], ), {})
 
     def eval_entity_type(self, expression: str) -> type:
-        return eval(expression, {"__builtins__": None}, self.__primitive_types)
+        new_type = eval(expression, {"__builtins__": None}, self.__primitive_types)
+        check_entity_type(new_type)
+        return new_type
 
     def is_data(self, one: str) -> bool:
         return is_data(self.eval_entity_type(one))
