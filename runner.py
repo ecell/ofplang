@@ -6,7 +6,7 @@ logger = getLogger(__name__)
 
 import dataclasses
 from collections import defaultdict, deque, OrderedDict
-from typing import Any, Iterator
+from typing import Any, Iterator, Callable
 from enum import IntEnum, auto
 
 from protocol import PortAddress, Port, Protocol, PortConnection, Entity
@@ -78,6 +78,10 @@ class StatusEnum(IntEnum):
     ACTIVE = auto()
     INACTIVE = auto()
 
+def default_callback(runner: 'Runner', tasks: list) -> None:
+    for operation, input_tokens in tasks:
+        logger.info(f"{(operation, input_tokens)}")
+
 class Runner:
 
     def __init__(self, protocol: Protocol, definitions: Definitions) -> None:
@@ -85,6 +89,13 @@ class Runner:
         self.__tokens = defaultdict(deque)
 
         self.__operation_status = {operation.id: StatusEnum.INACTIVE for operation in self.__model.operations()}
+        self.__callbacks = [default_callback]
+
+    def set_callback(self, func: Callable[[list], None]) -> None:
+        self.__callbacks = [func]
+
+    def add_callback(self, func: Callable[[list], None]) -> None:
+        self.__callbacks.append(func)
 
     def activate_all(self) -> None:
         for operation_id in self.__operation_status.keys():
@@ -112,7 +123,7 @@ class Runner:
         for address in new_tokens:
             self.__tokens[address].extend(new_tokens[address])
 
-    def run(self, max_iterations=1) -> list[tuple[str, dict[str, Any]]]:
+    def list_tasks(self, max_iterations=1) -> list[tuple[str, dict[str, Any]]]:
         tasks = []
         for operation in self.__model.operations():
             if self.__operation_status[operation.id] is not StatusEnum.ACTIVE:
@@ -125,6 +136,25 @@ class Runner:
                     for address, port in operation.input()}
                 tasks.append((operation.asentity(), input_tokens))
         return tasks
+
+    def run(self, inputs: dict) -> dict:
+        for key, value in inputs.items():
+            self.add_token(Token(PortAddress("input", key), {"value": value}))
+
+        self.activate_all()
+
+        while self.num_tokens() > 0:
+            self.transmit_token()
+            tasks = self.list_tasks()
+            tuple(callback(self, tasks) for callback in self.__callbacks)
+            if all(self.has_token(address) for address, _ in self.model.output()):
+                break
+        else:
+            raise RuntimeError("Never get here.")
+        
+        outputs = {address.port_id: self.__tokens[address].pop() for address, _ in self.model.output()}
+        # finalize
+        return outputs
 
     def _tokens(self):
         print({k: [x.value for x in v] for k, v in self.__tokens.items() if len(v) > 0})
