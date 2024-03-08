@@ -18,6 +18,12 @@ class PortAddress(NamedTuple):
     port_id: str
 
 @dataclasses.dataclass
+class Port:
+    id: str
+    type: str
+    default: dict | None = None
+
+@dataclasses.dataclass
 class PortConnection:
     input: PortAddress
     output: PortAddress
@@ -61,10 +67,10 @@ class Protocol:
         yaml.dump(self.__data, file)
 
     def input(self) -> Iterator[Entity]:
-        return (Entity(**value) for value in self.__data.get("input", ()))
+        return (Port(**value) for value in self.__data.get("input", ()))
 
     def output(self) -> Iterator[Entity]:
-        return (Entity(**value) for value in self.__data.get("output", ()))
+        return (Port(**value) for value in self.__data.get("output", ()))
 
     def operations(self) -> Iterator[Entity]:
         return (Entity(**value) for value in self.__data.get("operations", ()))

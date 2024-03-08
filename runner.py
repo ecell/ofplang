@@ -9,7 +9,7 @@ from collections import defaultdict, deque, OrderedDict
 from typing import Any, Iterator
 from enum import IntEnum, auto
 
-from protocol import PortAddress, Protocol, PortConnection, Entity
+from protocol import PortAddress, Port, Protocol, PortConnection, Entity
 from definitions import Definitions
 
 class Operation:
@@ -18,15 +18,15 @@ class Operation:
         self.__id = id
         self.__definition = definition
 
-    def input(self) -> Iterator[tuple[PortAddress, dict]]:
+    def input(self) -> Iterator[tuple[PortAddress, Port]]:
         input = {
-            PortAddress(self.__id, port["id"]): port
+            PortAddress(self.__id, port["id"]): Port(**port)
             for port in self.__definition.get("input", [])}
         return input.items()
 
-    def output(self) -> Iterator[tuple[PortAddress, dict]]:
+    def output(self) -> Iterator[tuple[PortAddress, Port]]:
         output = {
-            PortAddress(self.__id, port["id"]): port
+            PortAddress(self.__id, port["id"]): Port(**port)
             for port in self.__definition.get("output", [])}
         return output.items()
 
@@ -62,12 +62,12 @@ class Model:
     def operations(self) -> Iterator[Operation]:
         return self.__operations.values()
 
-    def input(self) -> Iterator[tuple[PortAddress, Entity]]:
+    def input(self) -> Iterator[tuple[PortAddress, Port]]:
         #XXX: default?
-        return ((PortAddress("input", entity.id), entity) for entity in self.__protocol.input())
+        return ((PortAddress("input", port.id), port) for port in self.__protocol.input())
 
-    def output(self) -> Iterator[tuple[PortAddress, Entity]]:
-        return ((PortAddress("output", entity.id), entity) for entity in self.__protocol.output())
+    def output(self) -> Iterator[tuple[PortAddress, Port]]:
+        return ((PortAddress("output", port.id), port) for port in self.__protocol.output())
 
 @dataclasses.dataclass
 class Token:
@@ -115,15 +115,14 @@ class Runner:
     def run(self, max_iterations=1) -> list[tuple[str, dict[str, Any]]]:
         tasks = []
         for operation in self.__model.operations():
-            if not self.__operation_status[operation.id]:
+            if self.__operation_status[operation.id] is not StatusEnum.ACTIVE:
                 continue
-
             for _ in range(max_iterations):
-                if any("default" not in definition and not self.has_token(address) for address, definition in operation.input()):
+                if any(port.default is None and not self.has_token(address) for address, port in operation.input()):
                     continue
                 input_tokens = {
-                    address: (self.__tokens[address].pop() if self.has_token(address) else definition["default"]["value"])
-                    for address, definition in operation.input()}
+                    address: (self.__tokens[address].pop() if self.has_token(address) else port.default["value"])
+                    for address, port in operation.input()}
                 tasks.append((operation.asentity(), input_tokens))
         return tasks
 
