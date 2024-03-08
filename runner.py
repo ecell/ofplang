@@ -7,6 +7,7 @@ logger = getLogger(__name__)
 import dataclasses
 from collections import defaultdict, deque, OrderedDict
 from typing import Any, Iterator
+from enum import IntEnum, auto
 
 from protocol import PortAddress, Protocol, PortConnection, Entity
 from definitions import Definitions
@@ -73,14 +74,25 @@ class Token:
     address: PortAddress
     value: str
 
+class StatusEnum(IntEnum):
+    ACTIVE = auto()
+    INACTIVE = auto()
+
 class Runner:
 
     def __init__(self, protocol: Protocol, definitions: Definitions) -> None:
-        self.__protocol = protocol
-        self.__definitions = definitions
-
         self.__model = Model(protocol, definitions)
         self.__tokens = defaultdict(deque)
+
+        self.__operation_status = {operation.id: StatusEnum.INACTIVE for operation in self.__model.operations()}
+
+    def activate_all(self) -> None:
+        for operation_id in self.__operation_status.keys():
+            self.__operation_status[operation_id] = StatusEnum.ACTIVE
+    
+    def deactivate(self, id: str) -> None:
+        assert id in self.__operation_status
+        self.__operation_status[id] = StatusEnum.INACTIVE
 
     def add_token(self, token: Token) -> None:
         self.__tokens[token.address].append(token)
@@ -103,6 +115,9 @@ class Runner:
     def run(self, max_iterations=1) -> list[tuple[str, dict[str, Any]]]:
         tasks = []
         for operation in self.__model.operations():
+            if not self.__operation_status[operation.id]:
+                continue
+
             for _ in range(max_iterations):
                 if any("default" not in definition and not self.has_token(address) for address, definition in operation.input()):
                     continue
