@@ -83,3 +83,19 @@ class Protocol:
             PortConnection(input=PortAddress(*value["input"]), output=PortAddress(*value["output"]))
             for value in self.__data.get("connections", ())
             )
+
+    def graph(self, filename: str) -> None:
+        import graphviz
+
+        g = graphviz.Digraph(format='png', graph_attr={'dpi': "300"})
+
+        for operation in self.operations():
+            g.node(operation.id)
+        
+        for connection in self.connections():
+            attributes = {"headlabel": connection.input.port_id, "taillabel": connection.output.port_id}
+            g.edge(
+                connection.input.operation_id, connection.output.operation_id,
+                _attributes=attributes)
+
+        g.render(outfile=filename)

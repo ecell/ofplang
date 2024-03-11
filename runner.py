@@ -80,7 +80,7 @@ class StatusEnum(IntEnum):
 
 def default_callback(runner: 'Runner', tasks: list[tuple[Entity, dict]]) -> None:
     for operation, input_tokens in tasks:
-        logger.info(f"{(operation, input_tokens)}")
+        logger.info(f"default_callback: {(operation, input_tokens)}")
 
 class Runner:
 

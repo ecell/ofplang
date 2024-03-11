@@ -6,6 +6,8 @@ from protocol import Protocol, Entity
 from validate import check_protocol
 from runner import Runner, Token
 
+import sys
+
 from logging import getLogger, StreamHandler, Formatter, INFO
 
 handler = StreamHandler()
@@ -22,6 +24,7 @@ definitions = Definitions('./manipulate.yaml')
 
 protocol = Protocol("./sample.yaml")
 protocol.dump()
+protocol.graph("graph.png")
 
 check_protocol(protocol, definitions)
 
