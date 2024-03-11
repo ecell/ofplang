@@ -1,0 +1,5 @@
+# ofplang
+
+```
+$ python sample.py
+```
