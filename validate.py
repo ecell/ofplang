@@ -15,6 +15,7 @@ def check_protocol(protocol: Protocol, definitions: Definitions | None = None) -
     check_connection_port_exists(protocol)
 
     definitions = definitions or Definitions()
+    check_definitions(definitions)
     check_operation_types(protocol, definitions)
     check_port_types(protocol, definitions)
 
@@ -54,6 +55,49 @@ def check_connection_port_exists(protocol: Protocol) -> None:
             is_valid = False
 
     assert is_valid, "Invalid connection."
+
+def check_definitions(definitions: Definitions) -> None:
+    is_valid = True
+    names = []
+    for definition in definitions:
+        assert isinstance(definition, dict)
+        if "name" not in definition:
+            logger.error(f"'name' not defined [{definition}].")
+            is_valid = False
+        elif definition['name'] not in names:
+            names.append(definition['name'])
+        else:
+            logger.error(f"'name' [{definition['name']}] already defined.")
+            is_valid = False
+        if "ref" not in definition:
+            logger.error(f"'ref' not defined [{definition}].")
+            is_valid = False
+    
+    for definition in definitions:
+        if definition['ref'] != "Operation":  #XXX
+            continue
+        for key in ("input", "output"):
+            if key not in definition:
+                continue
+            assert isinstance(definition[key], list)
+            for port in definition[key]:
+                assert isinstance(port, dict)
+                if "id" not in port:
+                    logger.error(f"'id' not defined [{port}].")
+                    is_valid = False
+                if "type" not in port:
+                    logger.error(f"'id' not defined [{port}].")
+                    is_valid = False
+                if "default" in port:
+                    assert isinstance(port["default"], dict)
+                    if "type" not in port["default"]:
+                        logger.error(f"'type' for default not defined [{port}].")
+                        is_valid = False
+                    if "value" not in port["default"]:
+                        logger.error(f"'value' for default not defined [{port}].")
+                        is_valid = False
+
+    assert is_valid, "Invalid definitions."
 
 def check_operation_types(protocol: Protocol, definitions: Definitions) -> None:
     is_valid = True
