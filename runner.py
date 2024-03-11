@@ -4,13 +4,14 @@ from logging import getLogger
 
 logger = getLogger(__name__)
 
-import dataclasses
+import dataclasses, pathlib, io
 from collections import defaultdict, deque, OrderedDict
 from typing import Any, Iterator, Callable
 from enum import IntEnum, auto
 
 from protocol import PortAddress, Port, Protocol, PortConnection, Entity
 from definitions import Definitions
+from validate import check_definitions, check_protocol
 
 class Operation:
 
@@ -174,3 +175,20 @@ class Runner:
     def clear_tokens(self) -> None:
         self.__tokens.clear()
 
+def run(
+        inputs: dict, 
+        protocol: Protocol | str | pathlib.PurePath | io.IOBase, 
+        definitions: Definitions | str | pathlib.PurePath | io.IOBase, 
+        callback: Callable[["Runner", list[tuple[Entity, dict]]], None]) -> dict:
+    if not isinstance(definitions, Definitions):
+        definitions = Definitions(definitions)
+    check_definitions(definitions)
+
+    if not isinstance(protocol, Protocol):
+        protocol = Protocol(protocol)
+    check_protocol(protocol, definitions)
+
+    runner = Runner(protocol, definitions)
+    runner.set_callback(callback)
+    outputs = runner.run(inputs=inputs)
+    return outputs
