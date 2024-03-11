@@ -132,7 +132,7 @@ class Runner:
                 if any(port.default is None and not self.has_token(address) for address, port in operation.input()):
                     continue
                 input_tokens = {
-                    address: (self.__tokens[address].pop() if self.has_token(address) else port.default["value"])
+                    address: (self.__tokens[address].pop() if self.has_token(address) else Token(address, port.default))
                     for address, port in operation.input()}
                 tasks.append((operation.asentity(), input_tokens))
         return tasks
