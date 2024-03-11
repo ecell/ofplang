@@ -17,7 +17,6 @@ def check_protocol(protocol: Protocol, definitions: Definitions | None = None) -
     check_connection_port_exists(protocol)
 
     definitions = definitions or Definitions()
-    check_definitions(definitions)
     check_operation_types(protocol, definitions)
     check_port_types(protocol, definitions)
 

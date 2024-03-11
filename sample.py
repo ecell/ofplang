@@ -3,7 +3,7 @@
 
 from definitions import Definitions
 from protocol import Protocol, Entity
-from validate import check_protocol
+from validate import check_definitions, check_protocol
 from runner import Runner, Token
 
 import sys
@@ -21,12 +21,12 @@ getLogger('runner').addHandler(handler)
 getLogger('runner').setLevel(INFO)
 
 definitions = Definitions('./manipulate.yaml')
+check_definitions(definitions)
 
 protocol = Protocol("./sample.yaml")
+check_protocol(protocol, definitions)
 protocol.dump()
 protocol.graph("graph.png")
-
-check_protocol(protocol, definitions)
 
 runner = Runner(protocol, definitions)
 
