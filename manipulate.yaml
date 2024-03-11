@@ -2,6 +2,7 @@
   ref: Object
 - name: Plate96
   ref: Labware
+  description: A 96-well plate.
 - name: Number
   ref: Data
 - name: Float
@@ -10,11 +11,13 @@
   ref: Number
 - name: ServePlate96
   ref: Operation
+  description: Provide an empty 96-well plate.
   output:
     - id: value
       type: Plate96
 - name: StoreLabware
   ref: Operation
+  description: Store the 96-well plate in the designated location. Or simply discard.
   input:
     - id: in1
       type: Labware
@@ -25,6 +28,7 @@
         type: String
 - name: DispenseLiquid96Wells
   ref: Operation
+  description: Dispense liquid into the 96-well plate.
   input:
     - id: in1
       type: Plate96
@@ -40,6 +44,7 @@
       type: Plate96
 - name: ReadAbsorbance3Colors
   ref: Operation
+  description: Measure the absorbance of the 96-well plate.
   input:
     - id: in1
       type: Plate96
