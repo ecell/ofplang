@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from definitions import Definitions
-from protocol import Protocol, PortAddress
+from protocol import Protocol, Entity
 from validate import check_protocol
 from runner import Runner, Token
 
@@ -30,7 +30,7 @@ check_protocol(protocol, definitions)
 
 runner = Runner(protocol, definitions)
 
-def func(runner: Runner, tasks: list) -> None:
+def func(runner: Runner, tasks: list[tuple[Entity, dict]]) -> None:
     for operation, input_tokens in tasks:
         # exec
         runner.add_tokens([

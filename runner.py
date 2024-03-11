@@ -78,7 +78,7 @@ class StatusEnum(IntEnum):
     ACTIVE = auto()
     INACTIVE = auto()
 
-def default_callback(runner: 'Runner', tasks: list) -> None:
+def default_callback(runner: 'Runner', tasks: list[tuple[Entity, dict]]) -> None:
     for operation, input_tokens in tasks:
         logger.info(f"{(operation, input_tokens)}")
 
@@ -91,10 +91,10 @@ class Runner:
         self.__operation_status = {operation.id: StatusEnum.INACTIVE for operation in self.__model.operations()}
         self.__callbacks = [default_callback]
 
-    def set_callback(self, func: Callable[[list], None]) -> None:
+    def set_callback(self, func: Callable[["Runner", list[tuple[Entity, dict]]], None]) -> None:
         self.__callbacks = [func]
 
-    def add_callback(self, func: Callable[[list], None]) -> None:
+    def add_callback(self, func: Callable[["Runner", list[tuple[Entity, dict]]], None]) -> None:
         self.__callbacks.append(func)
 
     def activate_all(self) -> None:

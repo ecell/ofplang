@@ -99,6 +99,9 @@ class TypeChecker:
     def is_data(self, one: str) -> bool:
         return is_data(self.eval_entity_type(one))
 
+    def is_object(self, one: str) -> bool:
+        return is_object(self.eval_entity_type(one))
+
     def is_acceptable(self, one: str, another: str) -> bool:
         return is_acceptable(self.eval_entity_type(one), self.eval_entity_type(another))
 

@@ -5,6 +5,7 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 import itertools
+from collections import defaultdict
 
 from definitions import Definitions
 from protocol import Protocol
@@ -171,6 +172,7 @@ def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
                 is_valid = False
 
     port_types = {}
+    connection_counts = defaultdict(list)
     for connection in protocol.connections():
         if connection.input.operation_id in operation_types:
             for port in operation_types[connection.input.operation_id].get("output", []):
@@ -202,6 +204,19 @@ def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
         
         if not type_checker.is_acceptable(input_port, output_port):
             logger.error(f"Type mismatch [{input_port} != {output_port}] in [{connection}]")
+            is_valid = False
+
+        if type_checker.is_object(input_port):
+            connection_counts[connection.input].append(connection)
+        if type_checker.is_object(output_port):
+            connection_counts[connection.output].append(connection)
+
+    for address, connections in connection_counts.items():
+        if len(connections) == 0:
+            logger.error(f"Object port [{address}] has no connection.")
+            is_valid = False
+        elif len(connections) > 1:
+            logger.error(f"Object port [{address}] has multiple connections [{connections}].")
             is_valid = False
 
     assert is_valid, "Invalid port type."
