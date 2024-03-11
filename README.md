@@ -1,5 +1,5 @@
 # ofplang
 
 ```
-$ python sample.py
+$ python sample1.py
 ```
