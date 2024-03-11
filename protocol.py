@@ -5,7 +5,7 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 from typing import Iterator, NamedTuple
-import pathlib, io, dataclasses
+import pathlib, io, dataclasses, sys
 import yaml
 
 @dataclasses.dataclass
@@ -62,6 +62,9 @@ class Protocol:
             self.__save(file)
         else:
             raise TypeError(f"Invalid type [{type(file)}]")
+    
+    def dump(self) -> None:
+        self.save(sys.stdout)
         
     def __save(self, file: io.IOBase) -> None:
         yaml.dump(self.__data, file)

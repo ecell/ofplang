@@ -6,8 +6,6 @@ from protocol import Protocol, Entity
 from validate import check_protocol
 from runner import Runner, Token
 
-import sys
-
 from logging import getLogger, StreamHandler, Formatter, INFO
 
 handler = StreamHandler()
@@ -23,15 +21,14 @@ getLogger('runner').setLevel(INFO)
 definitions = Definitions('./manipulate.yaml')
 
 protocol = Protocol("./sample.yaml")
-print(list(protocol.connections()))
-protocol.save(sys.stdout)
+protocol.dump()
 
 check_protocol(protocol, definitions)
 
 runner = Runner(protocol, definitions)
 
 def func(runner: Runner, tasks: list[tuple[Entity, dict]]) -> None:
-    for operation, input_tokens in tasks:
+    for operation, inputs in tasks:
         # exec
         runner.add_tokens([
             Token(address, {"value": None})

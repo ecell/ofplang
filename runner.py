@@ -131,13 +131,15 @@ class Runner:
             for _ in range(max_iterations):
                 if any(port.default is None and not self.has_token(address) for address, port in operation.input()):
                     continue
+                # pop tokens here
                 input_tokens = {
                     address: (self.__tokens[address].pop() if self.has_token(address) else Token(address, port.default))
                     for address, port in operation.input()}
-                tasks.append((operation.asentity(), input_tokens))
+                tasks.append((operation.asentity(), {address.port_id: token.value for address, token in input_tokens.items()}))
         return tasks
 
     def run(self, inputs: dict) -> dict:
+        self.clear_tokens()
         for key, value in inputs.items():
             self.add_token(Token(PortAddress("input", key), {"value": value}))
 
@@ -152,7 +154,7 @@ class Runner:
         else:
             raise RuntimeError("Never get here.")
         
-        outputs = {address.port_id: self.__tokens[address].pop() for address, _ in self.model.output()}
+        outputs = {address.port_id: self.__tokens[address].pop().value for address, _ in self.model.output()}
         # finalize
         return outputs
 
@@ -169,6 +171,6 @@ class Runner:
     def has_token(self, address: PortAddress) -> bool:
         return len(self.__tokens[address]) > 0
       
-    def reset_token(self, operation_id: str) -> None:
-        self.__tokens = {address: value for address, value in self.__tokens.items() if address.operation_id == operation_id}
+    def clear_tokens(self) -> None:
+        self.__tokens.clear()
 

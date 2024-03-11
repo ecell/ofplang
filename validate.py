@@ -7,6 +7,7 @@ logger = getLogger(__name__)
 import itertools
 from collections import defaultdict
 
+import entity_type
 from definitions import Definitions
 from protocol import Protocol
 
@@ -138,7 +139,6 @@ def check_operation_types(protocol: Protocol, definitions: Definitions) -> None:
     assert is_valid, "Invalid operation type."
 
 def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
-    import entity_type
     type_checker = entity_type.TypeChecker(definitions)
 
     is_valid = True
