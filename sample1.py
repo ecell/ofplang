@@ -45,5 +45,5 @@ runner = Runner(protocol, definitions)
 callback = Simulator()
 runner.add_callback(callback)
 
-outputs = runner.run(inputs={"volume": numpy.ones(96, dtype=float), "type": "Array[Float]"})
+outputs = runner.run(inputs={"volume": numpy.random.uniform(0, 200, 96), "type": "Array[Float]"})
 print(outputs)

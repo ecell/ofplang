@@ -40,7 +40,7 @@ class Simulator:
             outputs["out1"] = inputs["in1"]
 
             contents = sum(inputs["in1"]["value"]["contents"].values())
-            value = contents**3 / (contents**3 + 100.0**3)  # Sigmoid
+            value = contents ** 3 / (contents ** 3 + 100.0 ** 3)  # Sigmoid
             # value = [numpy.zeros(96, dtype=float)]  #XXX
             
             outputs["value"] = {"value": value, "type": "Spread[Array[Float]]"}
