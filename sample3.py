@@ -33,3 +33,9 @@ study = optuna.create_study()
 study.optimize(objective, n_trials=96)
 
 print(study.best_params)  # E.g. {'x': 99.94241349236856}
+
+import matplotlib.pyplot as plt
+ax = optuna.visualization.matplotlib.plot_optimization_history(study)
+ax.set_yscale('log')
+plt.tight_layout()
+plt.savefig('optimization_history.png', dpi=300)

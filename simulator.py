@@ -38,7 +38,11 @@ class Simulator:
             outputs["out1"] = {"value": value, "type": "Plate96"}
         elif operation.type == "ReadAbsorbance3Colors":
             outputs["out1"] = inputs["in1"]
-            value = [numpy.zeros(96, dtype=float)]  #XXX
+
+            contents = sum(inputs["in1"]["value"]["contents"].values())
+            value = contents**3 / (contents**3 + 100.0**3)  # Sigmoid
+            # value = [numpy.zeros(96, dtype=float)]  #XXX
+            
             outputs["value"] = {"value": value, "type": "Spread[Array[Float]]"}
         else:
             raise RuntimeError(f"Undefined operation given [{operation.type}].")
