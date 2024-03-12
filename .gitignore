@@ -2,6 +2,7 @@
 graph.gv
 graph.png
 optimization_history.png
+GPR.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

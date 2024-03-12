@@ -43,7 +43,7 @@ class Simulator:
             value = contents ** 3 / (contents ** 3 + 100.0 ** 3)  # Sigmoid
             # value = [numpy.zeros(96, dtype=float)]  #XXX
             
-            outputs["value"] = {"value": value, "type": "Spread[Array[Float]]"}
+            outputs["value"] = {"value": [value], "type": "Spread[Array[Float]]"}
         else:
             raise RuntimeError(f"Undefined operation given [{operation.type}].")
         return outputs

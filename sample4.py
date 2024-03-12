@@ -12,7 +12,7 @@ outputs = run(inputs, protocol="./sample.yaml", definitions='./manipulate.yaml',
 print(f"outputs = {outputs}")
 
 x_training = inputs["volume"]
-y_training = outputs["data"]["value"]
+y_training = outputs["data"]["value"][0]
 
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import ConstantKernel, WhiteKernel, RBF
