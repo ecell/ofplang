@@ -9,6 +9,10 @@
   ref: Number
 - name: Integer
   ref: Number
+- name: String
+  ref: Data
+- name: Unit
+  ref: String
 - name: ServePlate96
   ref: Operation
   description: Provide an empty 96-well plate.
@@ -39,6 +43,11 @@
         type: Integer
     - id: volume
       type: Array[Float]
+    - id: unit
+      type: Unit
+      default:
+        value: microliter
+        type: Unit
   output:
     - id: out1
       type: Plate96
