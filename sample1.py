@@ -32,16 +32,6 @@ protocol.graph("graph.png")
 
 runner = Runner(protocol, definitions)
 
-# def func(runner: Runner, tasks: list[tuple[Entity, dict]]) -> None:
-#     for operation, _ in tasks:
-#         # exec
-#         runner.add_tokens([
-#             Token(address, {"value": None})
-#             for address, _ in runner.model.get_by_id(operation.id).output()])
-#         if operation.type == "ServePlate96":  #XXX
-#             runner.deactivate(operation.id)
-# runner.add_callback(func)
-
 callback = Simulator()
 runner.add_callback(callback)
 

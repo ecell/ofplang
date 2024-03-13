@@ -27,7 +27,7 @@ class Simulator:
     def execute(self, operation: Entity, inputs: dict) -> None:
         outputs = {}
         if operation.type == "ServePlate96":
-            value = {"id": uuid.uuid4(), "contents": defaultdict(lambda: numpy.zeros(96, dtype=float))}
+            value = {"id": str(uuid.uuid4()), "contents": defaultdict(lambda: numpy.zeros(96, dtype=float))}
             outputs["value"] = {"value": value, "type": "Plate96"}
         elif operation.type == "StoreLabware":
             pass
