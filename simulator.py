@@ -39,9 +39,10 @@ class Simulator:
         elif operation.type == "ReadAbsorbance3Colors":
             outputs["out1"] = inputs["in1"]
 
+            # value = [numpy.zeros(96, dtype=float)]  #XXX
             contents = sum(inputs["in1"]["value"]["contents"].values())
             value = contents ** 3 / (contents ** 3 + 100.0 ** 3)  # Sigmoid
-            # value = [numpy.zeros(96, dtype=float)]  #XXX
+            value += numpy.random.normal(scale=0.05, size=value.shape)
             
             outputs["value"] = {"value": [value], "type": "Spread[Array[Float]]"}
         else:
