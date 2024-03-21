@@ -81,7 +81,7 @@ class StatusEnum(IntEnum):
 
 def default_executor(runner: 'Runner', tasks: list[tuple[Entity, dict]]) -> None:
     for operation, input_tokens in tasks:
-        logger.info(f"default_callback: {(operation, input_tokens)}")
+        logger.info(f"default_executor: {(operation, input_tokens)}")
 
 class Runner:
 
@@ -108,12 +108,12 @@ class Runner:
         assert id in self.__operation_status
         self.__operation_status[id] = StatusEnum.INACTIVE
 
-    def add_token(self, token: Token) -> None:
+    def _add_token(self, token: Token) -> None:
         self.__tokens[token.address].append(token)
 
-    def add_tokens(self, tokens: list[Token]) -> None:
+    def _add_tokens(self, tokens: list[Token]) -> None:
         for token in tokens:
-            self.add_token(token)
+            self._add_token(token)
 
     def transmit_token(self) -> None:
         new_tokens = defaultdict(deque)
@@ -126,7 +126,7 @@ class Runner:
         for address in new_tokens:
             self.__tokens[address].extend(new_tokens[address])
 
-    def list_tasks(self, max_iterations=1) -> list[tuple[str, dict[str, Any]]]:
+    def list_tasks(self, max_iterations=1) -> list[tuple[Entity, dict[str, Any]]]:
         tasks = []
         for operation in self.__model.operations():
             if self.__operation_status[operation.id] is not StatusEnum.ACTIVE:
@@ -141,11 +141,14 @@ class Runner:
                 tasks.append((operation.asentity(), {address.port_id: token.value for address, token in input_tokens.items()}))
         return tasks
 
+    def complete_task(self, operation: Entity, outputs: dict[str, Any]) -> None:
+        self._add_tokens([
+            Token(PortAddress(operation.id, key), value)
+            for key, value in outputs.items()])
+
     def run(self, inputs: dict) -> dict:
         self.clear_tokens()
-        for key, value in inputs.items():
-            self.add_token(Token(PortAddress("input", key), {"value": value}))
-
+        self.complete_task(Entity("input", "Operation"), {key: {"value": value} for key, value in inputs.items()})
         self.activate_all()
 
         while self.num_tokens() > 0:

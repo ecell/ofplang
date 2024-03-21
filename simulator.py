@@ -1,5 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 import uuid
 from collections import defaultdict
@@ -17,14 +20,14 @@ class Simulator:
     def __call__(self, runner: Runner, tasks: list[tuple[Entity, dict]]) -> None:
         for operation, inputs in tasks:
             outputs = self.execute(operation, inputs)
-            runner.add_tokens([
-                Token(PortAddress(operation.id, key), value)
-                for key, value in outputs.items()])
             
+            runner.complete_task(operation, outputs)         
             if operation.type == "ServePlate96":  #XXX
                 runner.deactivate(operation.id)
 
     def execute(self, operation: Entity, inputs: dict) -> None:
+        logger.info(f"execute: {(operation, inputs)}")
+
         outputs = {}
         if operation.type == "ServePlate96":
             value = {"id": str(uuid.uuid4()), "contents": defaultdict(lambda: numpy.zeros(96, dtype=float))}
