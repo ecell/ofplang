@@ -32,8 +32,8 @@ protocol.graph("graph.png")
 
 runner = Runner(protocol, definitions)
 
-callback = Simulator()
-runner.add_callback(callback)
+executor = Simulator()
+runner.executor = executor
 
 outputs = runner.run(inputs={"volume": numpy.random.uniform(0, 200, 96), "type": "Array[Float]"})
 print(outputs)

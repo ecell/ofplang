@@ -8,7 +8,7 @@ from simulator import Simulator
 
 inputs = {"volume": numpy.random.uniform(0, 200, 96), "type": "Array[Float]"}
 print(f"inputs = {inputs}")
-outputs = run(inputs, protocol="./sample.yaml", definitions='./manipulate.yaml', callback=Simulator())
+outputs = run(inputs, protocol="./sample.yaml", definitions='./manipulate.yaml', executor=Simulator())
 print(f"outputs = {outputs}")
 
 nsamples = 20

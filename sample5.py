@@ -11,7 +11,7 @@ from simulator import Simulator
 definitions = Definitions('./manipulate.yaml')
 protocol = Protocol("./sample.yaml")
 runner = Runner(protocol, definitions)
-runner.set_callback(Simulator())
+runner.executor = Simulator()
 
 n_training = 10
 

@@ -14,8 +14,8 @@ check_definitions(definitions)
 protocol = Protocol("./sample.yaml")
 check_protocol(protocol, definitions)
 runner = Runner(protocol, definitions)
-callback = Simulator()
-runner.set_callback(callback)
+executor = Simulator()
+runner.executor = executor
 
 import optuna
 

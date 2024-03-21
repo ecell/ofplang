@@ -79,7 +79,7 @@ class StatusEnum(IntEnum):
     ACTIVE = auto()
     INACTIVE = auto()
 
-def default_callback(runner: 'Runner', tasks: list[tuple[Entity, dict]]) -> None:
+def default_executor(runner: 'Runner', tasks: list[tuple[Entity, dict]]) -> None:
     for operation, input_tokens in tasks:
         logger.info(f"default_callback: {(operation, input_tokens)}")
 
@@ -90,13 +90,15 @@ class Runner:
         self.__tokens = defaultdict(deque)
 
         self.__operation_status = {operation.id: StatusEnum.INACTIVE for operation in self.__model.operations()}
-        self.__callbacks = [default_callback]
+        self.__executor = default_executor
 
-    def set_callback(self, func: Callable[["Runner", list[tuple[Entity, dict]]], None]) -> None:
-        self.__callbacks = [func]
-
-    def add_callback(self, func: Callable[["Runner", list[tuple[Entity, dict]]], None]) -> None:
-        self.__callbacks.append(func)
+    @property
+    def executor(self) -> Callable[["Runner", list[tuple[Entity, dict]]], None]:
+        return self.__executor
+    
+    @executor.setter
+    def executor(self, func: Callable[["Runner", list[tuple[Entity, dict]]], None]) -> None:
+        self.__executor = func
 
     def activate_all(self) -> None:
         for operation_id in self.__operation_status.keys():
@@ -149,7 +151,7 @@ class Runner:
         while self.num_tokens() > 0:
             self.transmit_token()
             tasks = self.list_tasks()
-            tuple(callback(self, tasks) for callback in self.__callbacks)
+            self.__executor(self, tasks)
             if all(self.has_token(address) for address, _ in self.model.output()):
                 break
         else:
@@ -179,7 +181,7 @@ def run(
         inputs: dict, 
         protocol: Protocol | str | pathlib.PurePath | io.IOBase, 
         definitions: Definitions | str | pathlib.PurePath | io.IOBase, 
-        callback: Callable[["Runner", list[tuple[Entity, dict]]], None]) -> dict:
+        executor: Callable[["Runner", list[tuple[Entity, dict]]], None]) -> dict:
     if not isinstance(definitions, Definitions):
         definitions = Definitions(definitions)
     check_definitions(definitions)
@@ -189,6 +191,6 @@ def run(
     check_protocol(protocol, definitions)
 
     runner = Runner(protocol, definitions)
-    runner.set_callback(callback)
+    runner.executor = executor
     outputs = runner.run(inputs=inputs)
     return outputs
