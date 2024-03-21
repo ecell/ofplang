@@ -35,5 +35,5 @@ runner = Runner(protocol, definitions)
 executor = Simulator()
 runner.executor = executor
 
-outputs = runner.run(inputs={"volume": numpy.random.uniform(0, 200, 96), "type": "Array[Float]"})
+outputs = runner.run(inputs={"volume": {"value": numpy.random.uniform(0, 200, 96), "type": "Array[Float]"}})
 print(outputs)

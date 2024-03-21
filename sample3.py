@@ -24,7 +24,7 @@ def objective(trial):
     x = trial.suggest_float('x', 0, 200)
     volume = numpy.zeros(96, dtype=float)
     volume[trial.number] = x
-    inputs = {"volume": volume, "type": "Array[Float]"}
+    inputs = {"volume": {"value": volume, "type": "Array[Float]"}}
     outputs = runner.run(inputs)
     y = outputs["data"]["value"][0][trial.number]
     return (y - 0.5) ** 2

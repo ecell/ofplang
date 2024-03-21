@@ -148,7 +148,7 @@ class Runner:
 
     def run(self, inputs: dict) -> dict:
         self.clear_tokens()
-        self.complete_task(Entity("input", "Operation"), {key: {"value": value} for key, value in inputs.items()})
+        self.complete_task(Entity("input", "Operation"), inputs)
         self.activate_all()
 
         while self.num_tokens() > 0:

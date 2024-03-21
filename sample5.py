@@ -17,7 +17,7 @@ n_training = 10
 
 volume = numpy.zeros(96, dtype=float)
 volume[: n_training] = numpy.random.uniform(0, 200, n_training)
-inputs = {"volume": volume, "type": "Array[Float]"}
+inputs = {"volume": {"value": volume, "type": "Array[Float]"}}
 outputs = runner.run(inputs=inputs)
 
 x_training = volume[: n_training]
@@ -52,7 +52,7 @@ for idx in range(n_queries):
     x = x_grid[query_idx]
     volume = numpy.zeros(96, dtype=float)
     volume[n_training + idx] = x
-    inputs = {"volume": volume, "type": "Array[Float]"}
+    inputs = {"volume": {"value": volume, "type": "Array[Float]"}}
     outputs = runner.run(inputs)
     y = outputs["data"]["value"][0][n_training + idx]
 
@@ -103,7 +103,7 @@ print(study.best_params)  # E.g. {'x': 99.94241349236856}
 
 volume = numpy.zeros(96, dtype=float)
 volume[n_training + n_queries] = study.best_params['x']
-inputs = {"volume": volume, "type": "Array[Float]"}
+inputs = {"volume": {"value": volume, "type": "Array[Float]"}}
 outputs = runner.run(inputs=inputs)
 y = outputs["data"]["value"][0][n_training + n_queries]
 print(y)
