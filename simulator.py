@@ -9,11 +9,11 @@ from collections import defaultdict
 import numpy
 
 from runner import Runner
-from protocol import Entity
+from protocol import EntityDescription
 
 class Executor:
 
-    def __call__(self, runner: Runner, jobs: list[tuple[str, Entity, dict]]) -> None:
+    def __call__(self, runner: Runner, jobs: list[tuple[str, EntityDescription, dict]]) -> None:
         raise NotImplementedError()
 
 class Simulator(Executor):
@@ -21,7 +21,7 @@ class Simulator(Executor):
     def __init__(self):
         pass
 
-    def __call__(self, runner: Runner, jobs: list[tuple[str, Entity, dict]]) -> None:
+    def __call__(self, runner: Runner, jobs: list[tuple[str, EntityDescription, dict]]) -> None:
         for job_id, operation, inputs in jobs:
             outputs = self.execute(operation, inputs)
 
@@ -29,7 +29,7 @@ class Simulator(Executor):
             if operation.type == "ServePlate96":  #XXX
                 runner.deactivate(operation.id)
 
-    def execute(self, operation: Entity, inputs: dict) -> None:
+    def execute(self, operation: EntityDescription, inputs: dict) -> None:
         logger.info(f"execute: {(operation, inputs)}")
 
         outputs = {}

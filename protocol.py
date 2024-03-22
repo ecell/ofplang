@@ -9,7 +9,7 @@ import pathlib, io, dataclasses, sys
 import yaml
 
 @dataclasses.dataclass
-class Entity:
+class EntityDescription:
     id: str
     type: str
 
@@ -47,7 +47,7 @@ class Protocol:
             self.__load(file)
         else:
             raise TypeError(f"Invalid type [{type(file)}]")
-        
+
     def __load(self, file: io.IOBase) -> None:
         self.__data = yaml.load(file, Loader=yaml.Loader)
 
@@ -62,21 +62,21 @@ class Protocol:
             self.__save(file)
         else:
             raise TypeError(f"Invalid type [{type(file)}]")
-    
+
     def dump(self) -> None:
         self.save(sys.stdout)
-        
+
     def __save(self, file: io.IOBase) -> None:
         yaml.dump(self.__data, file)
 
-    def input(self) -> Iterator[Entity]:
+    def input(self) -> Iterator[EntityDescription]:
         return (Port(**value) for value in self.__data.get("input", ()))
 
-    def output(self) -> Iterator[Entity]:
+    def output(self) -> Iterator[EntityDescription]:
         return (Port(**value) for value in self.__data.get("output", ()))
 
-    def operations(self) -> Iterator[Entity]:
-        return (Entity(**value) for value in self.__data.get("operations", ()))
+    def operations(self) -> Iterator[EntityDescription]:
+        return (EntityDescription(**value) for value in self.__data.get("operations", ()))
 
     def connections(self) -> Iterator[PortConnection]:
         return (
@@ -91,7 +91,7 @@ class Protocol:
 
         for operation in self.operations():
             g.node(operation.id)
-        
+
         for connection in self.connections():
             attributes = {"headlabel": connection.input.port_id, "taillabel": connection.output.port_id}
             g.edge(

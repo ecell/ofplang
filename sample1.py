@@ -16,9 +16,9 @@ getLogger('simulator').setLevel(INFO)
 import numpy
 
 from definitions import Definitions
-from protocol import Protocol, Entity
+from protocol import Protocol
 from validate import check_definitions, check_protocol
-from runner import Runner, Token
+from runner import Runner
 from simulator import Simulator
 
 

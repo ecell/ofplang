@@ -7,7 +7,7 @@ logger = getLogger(__name__)
 import definitions
 
 import _entity_type
-from _entity_type import Object, Data, Operation, IOOperation, Spread, Optional, Array
+from _entity_type import EntityType, Object, Data, Operation, IOOperation, Spread, Optional, Array
 
 
 class TypeManager:

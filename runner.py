@@ -9,7 +9,7 @@ from collections import defaultdict, deque, OrderedDict
 from typing import Any, Iterator, Callable, ValuesView
 from enum import IntEnum, auto
 
-from protocol import PortAddress, Port, Protocol, PortConnection, Entity
+from protocol import PortAddress, Port, Protocol, PortConnection, EntityDescription
 from definitions import Definitions
 from validate import check_definitions, check_protocol
 
@@ -32,8 +32,8 @@ class Operation:
             for port in self.__definition.get("output", [])}
         return output.items()
 
-    def asentity(self) -> Entity:
-        return Entity(self.__id, self.__definition["name"])
+    def asentity(self) -> EntityDescription:
+        return EntityDescription(self.__id, self.__definition["name"])
 
     @property
     def id(self) -> str:
@@ -82,7 +82,7 @@ class StatusEnum(IntEnum):
 
 @dataclasses.dataclass
 class Job:
-    operation: Entity
+    operation: EntityDescription
     inputs: list[Token]
     outputs: list[Token] | None
     metadata: dict
@@ -95,7 +95,7 @@ class Experiment:
         self.__running_jobs: dict[str, Job] = {}
         self.__complete_jobs: list[Job] = []
 
-    def new_job(self, operation: Entity, inputs: list[Token], metadata: dict | None = None) -> str:
+    def new_job(self, operation: EntityDescription, inputs: list[Token], metadata: dict | None = None) -> str:
         metadata = metadata or {}
         job_id = str(uuid.uuid4())
         self.__running_jobs[job_id] = Job(operation, inputs, None, metadata)
@@ -127,7 +127,7 @@ class Experiment:
     def running(self) -> ValuesView[Job]:
         return self.__running_jobs.values()
 
-def default_executor(runner: 'Runner', tasks: list[tuple[str, Entity, dict]]) -> None:
+def default_executor(runner: 'Runner', tasks: list[tuple[str, EntityDescription, dict]]) -> None:
     for job_id, operation, input_tokens in tasks:
         logger.info(f"default_executor: {(job_id, operation, input_tokens)}")
 
@@ -142,11 +142,11 @@ class Runner:
         self.__experiment: Experiment | None = None
 
     @property
-    def executor(self) -> Callable[["Runner", list[tuple[str, Entity, dict]]], None]:
+    def executor(self) -> Callable[["Runner", list[tuple[str, EntityDescription, dict]]], None]:
         return self.__executor
 
     @executor.setter
-    def executor(self, func: Callable[["Runner", list[tuple[str, Entity, dict]]], None]) -> None:
+    def executor(self, func: Callable[["Runner", list[tuple[str, EntityDescription, dict]]], None]) -> None:
         self.__executor = func
 
     def activate_all(self) -> None:
@@ -168,7 +168,7 @@ class Runner:
         for address in new_tokens:
             self.__tokens[address].extend(new_tokens[address])
 
-    def list_jobs(self, max_iterations=1) -> list[tuple[str, Entity, dict[str, Any]]]:
+    def list_jobs(self, max_iterations=1) -> list[tuple[str, EntityDescription, dict[str, Any]]]:
         jobs = []
         for operation in self.__model.operations():
             if self.__operation_status[operation.id] is not StatusEnum.ACTIVE:
@@ -184,7 +184,7 @@ class Runner:
                 jobs.append((job_id, operation.asentity(), {token.address.port_id: token.value for token in input_tokens}))
         return jobs
 
-    def complete_job(self, job_id: str, operation: Entity, outputs: dict[str, Any]) -> None:
+    def complete_job(self, job_id: str, operation: EntityDescription, outputs: dict[str, Any]) -> None:
         output_tokens = [Token(PortAddress(operation.id, key), value) for key, value in outputs.items()]
         self.__experiment.complete_job(job_id, outputs)
         for token in output_tokens:
@@ -194,7 +194,7 @@ class Runner:
         self.__experiment = Experiment()
         self.clear_tokens()
 
-        input_operation = Entity("input", "IOOperation")
+        input_operation = EntityDescription("input", "IOOperation")
         self.complete_job(self.__experiment.new_job(input_operation, {}), input_operation, inputs)
         self.activate_all()
 
@@ -208,9 +208,10 @@ class Runner:
             raise RuntimeError("Never get here.")
 
         output_tokens = [self.__tokens[address].pop() for address, _ in self.model.output()]
-        output_operation = Entity("output", "IOOperation")
+        output_operation = EntityDescription("output", "IOOperation")
         self.complete_job(self.__experiment.new_job(output_operation, output_tokens), output_operation, {})
         experiment, self.__experiment = self.__experiment, None
+        assert len(experiment.running()) == 0, f"Running job(s) remained [{len(experiment.running())}]."
         return experiment
 
     def _tokens(self):
@@ -233,7 +234,7 @@ def run(
         inputs: dict,
         protocol: Protocol | str | pathlib.PurePath | io.IOBase,
         definitions: Definitions | str | pathlib.PurePath | io.IOBase,
-        executor: Callable[["Runner", list[tuple[Entity, dict]]], None]) -> dict:
+        executor: Callable[["Runner", list[tuple[EntityDescription, dict]]], None]) -> dict:
     if not isinstance(definitions, Definitions):
         definitions = Definitions(definitions)
     check_definitions(definitions)
