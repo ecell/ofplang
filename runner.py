@@ -6,7 +6,7 @@ logger = getLogger(__name__)
 
 import dataclasses, pathlib, io, uuid
 from collections import defaultdict, deque, OrderedDict
-from typing import Any, Iterator, Callable
+from typing import Any, Iterator, Callable, ValuesView
 from enum import IntEnum, auto
 
 from protocol import PortAddress, Port, Protocol, PortConnection, Entity
@@ -90,39 +90,42 @@ class Job:
 class Experiment:
 
     def __init__(self, metadata: dict | None = None) -> None:
-        metadata = metadata | None
+        metadata = metadata or {}
         self.__metadata = metadata
-        self.__jobs: dict[str, Job] = {}
+        self.__running_jobs: dict[str, Job] = {}
+        self.__complete_jobs: list[Job] = []
 
     def new_job(self, operation: Entity, inputs: list[Token], metadata: dict | None = None) -> str:
         metadata = metadata or {}
         job_id = str(uuid.uuid4())
-        self.__jobs[job_id] = Job(operation, inputs, None, metadata)
+        self.__running_jobs[job_id] = Job(operation, inputs, None, metadata)
         return job_id
 
     def complete_job(self, job_id: str, outputs: list[Token], metadata: dict | None = None) -> str:
         metadata = metadata or {}
-        assert job_id in self.__jobs, job_id
-        job = self.__jobs[job_id]
-        self.__jobs[job_id] = Job(job.operation, job.inputs, outputs, dict(job.metadata, **metadata))
+        assert job_id in self.__running_jobs, job_id
+        job = self.__running_jobs.pop(job_id)
+        self.__complete_jobs.append(Job(job.operation, job.inputs, outputs, dict(job.metadata, **metadata)))
 
     @property
     def input(self) -> dict[str, Any]:
-        for job in self.__jobs.values():
-            if job.operation.id == "input":
-                break
-        else:
-            raise RuntimeError("No input.")
+        assert len(self.__complete_jobs) > 0
+        job = self.__complete_jobs[0]
+        assert job.operation.id == "input"
         return {token.address.port_id: token.value for token in job.outputs}
 
     @property
     def output(self) -> dict[str, Any]:
-        for job in self.__jobs.values():
-            if job.operation.id == "output":
-                break
-        else:
-            raise RuntimeError("No input.")
+        assert len(self.__complete_jobs) > 1
+        job = self.__complete_jobs[-1]
+        assert job.operation.id == "output"
         return {token.address.port_id: token.value for token in job.inputs}
+
+    def jobs(self) -> list[Job]:
+        return self.__complete_jobs  #XXX: copy?
+
+    def running(self) -> ValuesView[Job]:
+        return self.__running_jobs.values()
 
 def default_executor(runner: 'Runner', tasks: list[tuple[str, Entity, dict]]) -> None:
     for job_id, operation, input_tokens in tasks:
