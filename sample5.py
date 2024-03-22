@@ -18,7 +18,7 @@ n_training = 10
 volume = numpy.zeros(96, dtype=float)
 volume[: n_training] = numpy.random.uniform(0, 200, n_training)
 inputs = {"volume": {"value": volume, "type": "Array[Float]"}}
-outputs = runner.run(inputs=inputs)
+outputs = runner.run(inputs=inputs).output
 
 x_training = volume[: n_training]
 y_training = outputs["data"]["value"][0][: n_training]
@@ -53,7 +53,7 @@ for idx in range(n_queries):
     volume = numpy.zeros(96, dtype=float)
     volume[n_training + idx] = x
     inputs = {"volume": {"value": volume, "type": "Array[Float]"}}
-    outputs = runner.run(inputs)
+    outputs = runner.run(inputs).output
     y = outputs["data"]["value"][0][n_training + idx]
 
     regressor.teach(numpy.array([[x]]), numpy.array([[y]]))
@@ -104,6 +104,6 @@ print(study.best_params)  # E.g. {'x': 99.94241349236856}
 volume = numpy.zeros(96, dtype=float)
 volume[n_training + n_queries] = study.best_params['x']
 inputs = {"volume": {"value": volume, "type": "Array[Float]"}}
-outputs = runner.run(inputs=inputs)
+outputs = runner.run(inputs=inputs).output
 y = outputs["data"]["value"][0][n_training + n_queries]
 print(y)

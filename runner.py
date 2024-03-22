@@ -89,11 +89,10 @@ class Job:
 
 class Experiment:
 
-    def __init__(self) -> None:
+    def __init__(self, metadata: dict | None = None) -> None:
+        metadata = metadata | None
+        self.__metadata = metadata
         self.__jobs: dict[str, Job] = {}
-
-    def new_token(self, address: PortAddress, value: dict[str, Any]) -> Token:
-        return Token(address, value)
 
     def new_job(self, operation: Entity, inputs: list[Token], metadata: dict | None = None) -> str:
         metadata = metadata or {}
@@ -107,6 +106,24 @@ class Experiment:
         job = self.__jobs[job_id]
         self.__jobs[job_id] = Job(job.operation, job.inputs, outputs, dict(job.metadata, **metadata))
 
+    @property
+    def input(self) -> dict[str, Any]:
+        for job in self.__jobs.values():
+            if job.operation.id == "input":
+                break
+        else:
+            raise RuntimeError("No input.")
+        return {token.address.port_id: token.value for token in job.outputs}
+
+    @property
+    def output(self) -> dict[str, Any]:
+        for job in self.__jobs.values():
+            if job.operation.id == "output":
+                break
+        else:
+            raise RuntimeError("No input.")
+        return {token.address.port_id: token.value for token in job.inputs}
+
 def default_executor(runner: 'Runner', tasks: list[tuple[str, Entity, dict]]) -> None:
     for job_id, operation, input_tokens in tasks:
         logger.info(f"default_executor: {(job_id, operation, input_tokens)}")
@@ -119,7 +136,7 @@ class Runner:
 
         self.__operation_status = {operation.id: StatusEnum.INACTIVE for operation in self.__model.operations()}
         self.__executor = default_executor
-        self.__experiment = Experiment()
+        self.__experiment: Experiment | None = None
 
     @property
     def executor(self) -> Callable[["Runner", list[tuple[str, Entity, dict]]], None]:
@@ -141,7 +158,7 @@ class Runner:
         new_tokens = defaultdict(deque)
         for connection in self.__model.connections():
             for token in self.__tokens[connection.input]:
-                new_token = self.__experiment.new_token(connection.output, token.value)
+                new_token = Token(connection.output, token.value)
                 new_tokens[new_token.address].append(new_token)
         for connection in self.__model.connections():
             del self.__tokens[connection.input]
@@ -149,7 +166,7 @@ class Runner:
             self.__tokens[address].extend(new_tokens[address])
 
     def list_jobs(self, max_iterations=1) -> list[tuple[str, Entity, dict[str, Any]]]:
-        tasks = []
+        jobs = []
         for operation in self.__model.operations():
             if self.__operation_status[operation.id] is not StatusEnum.ACTIVE:
                 continue
@@ -158,20 +175,22 @@ class Runner:
                     continue
                 # pop tokens here
                 input_tokens = [
-                    (self.__tokens[address].pop() if self.has_token(address) else self.__experiment.new_token(address, port.default))
+                    (self.__tokens[address].pop() if self.has_token(address) else Token(address, port.default))
                     for address, port in operation.input()]
                 job_id = self.__experiment.new_job(operation.asentity(), input_tokens)
-                tasks.append((job_id, operation.asentity(), {token.address.port_id: token.value for token in input_tokens}))
-        return tasks
+                jobs.append((job_id, operation.asentity(), {token.address.port_id: token.value for token in input_tokens}))
+        return jobs
 
     def complete_job(self, job_id: str, operation: Entity, outputs: dict[str, Any]) -> None:
-        output_tokens = [self.__experiment.new_token(PortAddress(operation.id, key), value) for key, value in outputs.items()]
+        output_tokens = [Token(PortAddress(operation.id, key), value) for key, value in outputs.items()]
         self.__experiment.complete_job(job_id, outputs)
         for token in output_tokens:
             self.__tokens[token.address].append(token)
 
-    def run(self, inputs: dict) -> dict:
+    def run(self, inputs: dict) -> Experiment:
+        self.__experiment = Experiment()
         self.clear_tokens()
+
         input_operation = Entity("input", "Operation")
         self.complete_job(self.__experiment.new_job(input_operation, {}), input_operation, inputs)
         self.activate_all()
@@ -185,9 +204,11 @@ class Runner:
         else:
             raise RuntimeError("Never get here.")
 
-        outputs = {address.port_id: self.__tokens[address].pop().value for address, _ in self.model.output()}
-        # finalize
-        return outputs
+        output_tokens = [self.__tokens[address].pop() for address, _ in self.model.output()]
+        output_operation = Entity("output", "Operation")
+        self.complete_job(self.__experiment.new_job(output_operation, output_tokens), output_operation, {})
+        experiment, self.__experiment = self.__experiment, None
+        return experiment
 
     def _tokens(self):
         print({k: [x.value for x in v] for k, v in self.__tokens.items() if len(v) > 0})
@@ -220,5 +241,5 @@ def run(
 
     runner = Runner(protocol, definitions)
     runner.executor = executor
-    outputs = runner.run(inputs=inputs)
-    return outputs
+    experiment = runner.run(inputs=inputs)
+    return experiment.output

@@ -25,8 +25,8 @@ def objective(trial):
     volume = numpy.zeros(96, dtype=float)
     volume[trial.number] = x
     inputs = {"volume": {"value": volume, "type": "Array[Float]"}}
-    outputs = runner.run(inputs)
-    y = outputs["data"]["value"][0][trial.number]
+    experiment = runner.run(inputs)
+    y = experiment.output["data"]["value"][0][trial.number]
     return (y - 0.5) ** 2
 
 study = optuna.create_study()
