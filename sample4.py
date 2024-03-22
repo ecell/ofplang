@@ -12,7 +12,7 @@ outputs = run(inputs, protocol="./sample.yaml", definitions='./manipulate.yaml',
 print(f"outputs = {outputs}")
 
 nsamples = 20
-x = inputs["volume"]
+x = inputs["volume"]["value"]
 y = outputs["data"]["value"][0]
 x_training = x[: nsamples]
 y_training = y[: nsamples]
@@ -22,7 +22,7 @@ from sklearn.gaussian_process.kernels import ConstantKernel, WhiteKernel, RBF
 
 kernel = ConstantKernel() * RBF() + WhiteKernel()
 regressor = GaussianProcessRegressor(kernel=kernel, alpha=0, random_state=0)
-regressor.fit(x_training.reshape(-1, 1), y_training) 
+regressor.fit(x_training.reshape(-1, 1), y_training)
 
 x_grid = numpy.linspace(0, 200, 100)
 pred_mu, pred_sigma = regressor.predict(x_grid.reshape(-1, 1), return_std=True)

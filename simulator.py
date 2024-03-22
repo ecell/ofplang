@@ -8,8 +8,8 @@ import uuid
 from collections import defaultdict
 import numpy
 
-from runner import Runner, Token
-from protocol import Entity, PortAddress
+from runner import Runner
+from protocol import Entity
 
 
 class Simulator:
@@ -17,11 +17,11 @@ class Simulator:
     def __init__(self):
         pass
 
-    def __call__(self, runner: Runner, tasks: list[tuple[Entity, dict]]) -> None:
-        for operation, inputs in tasks:
+    def __call__(self, runner: Runner, tasks: list[tuple[str, Entity, dict]]) -> None:
+        for run_id, operation, inputs in tasks:
             outputs = self.execute(operation, inputs)
-            
-            runner.complete_task(operation, outputs)         
+
+            runner.complete_task(run_id, operation, outputs)
             if operation.type == "ServePlate96":  #XXX
                 runner.deactivate(operation.id)
 
@@ -46,7 +46,7 @@ class Simulator:
             contents = sum(inputs["in1"]["value"]["contents"].values())
             value = contents ** 3 / (contents ** 3 + 100.0 ** 3)  # Sigmoid
             value += numpy.random.normal(scale=0.05, size=value.shape)
-            
+
             outputs["value"] = {"value": [value], "type": "Spread[Array[Float]]"}
         else:
             raise RuntimeError(f"Undefined operation given [{operation.type}].")
