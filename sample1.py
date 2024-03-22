@@ -31,9 +31,7 @@ protocol.dump()
 protocol.graph("graph.png")
 
 runner = Runner(protocol, definitions)
-
-executor = Simulator()
-runner.executor = executor
+runner.executor = Simulator()
 
 experiment = runner.run(inputs={"volume": {"value": numpy.random.uniform(0, 200, 96), "type": "Array[Float]"}})
 print(experiment.output)

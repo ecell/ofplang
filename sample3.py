@@ -14,8 +14,7 @@ check_definitions(definitions)
 protocol = Protocol("./sample.yaml")
 check_protocol(protocol, definitions)
 runner = Runner(protocol, definitions)
-executor = Simulator()
-runner.executor = executor
+runner.executor = Simulator()
 
 import optuna
 
@@ -25,8 +24,8 @@ def objective(trial):
     volume = numpy.zeros(96, dtype=float)
     volume[trial.number] = x
     inputs = {"volume": {"value": volume, "type": "Array[Float]"}}
-    experiment = runner.run(inputs)
-    y = experiment.output["data"]["value"][0][trial.number]
+    outputs = runner.run(inputs).output
+    y = outputs["data"]["value"][0][trial.number]
     return (y - 0.5) ** 2
 
 study = optuna.create_study()

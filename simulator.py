@@ -11,8 +11,12 @@ import numpy
 from runner import Runner
 from protocol import Entity
 
+class Executor:
 
-class Simulator:
+    def __call__(self, runner: Runner, jobs: list[tuple[str, Entity, dict]]) -> None:
+        raise NotImplementedError()
+
+class Simulator(Executor):
 
     def __init__(self):
         pass
