@@ -17,11 +17,11 @@ class Simulator:
     def __init__(self):
         pass
 
-    def __call__(self, runner: Runner, tasks: list[tuple[str, Entity, dict]]) -> None:
-        for run_id, operation, inputs in tasks:
+    def __call__(self, runner: Runner, jobs: list[tuple[str, Entity, dict]]) -> None:
+        for job_id, operation, inputs in jobs:
             outputs = self.execute(operation, inputs)
 
-            runner.complete_task(run_id, operation, outputs)
+            runner.complete_job(job_id, operation, outputs)
             if operation.type == "ServePlate96":  #XXX
                 runner.deactivate(operation.id)
 

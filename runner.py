@@ -81,7 +81,7 @@ class StatusEnum(IntEnum):
     INACTIVE = auto()
 
 @dataclasses.dataclass
-class Run:
+class Job:
     operation: Entity
     inputs: list[Token]
     outputs: list[Token] | None
@@ -90,26 +90,26 @@ class Run:
 class Experiment:
 
     def __init__(self) -> None:
-        self.__runs: dict[str, Run] = {}
+        self.__jobs: dict[str, Job] = {}
 
     def new_token(self, address: PortAddress, value: dict[str, Any]) -> Token:
         return Token(address, value)
 
-    def new_run(self, operation: Entity, inputs: list[Token], metadata: dict | None = None) -> str:
+    def new_job(self, operation: Entity, inputs: list[Token], metadata: dict | None = None) -> str:
         metadata = metadata or {}
-        run_id = str(uuid.uuid4())
-        self.__runs[run_id] = Run(operation, inputs, None, metadata)
-        return run_id
+        job_id = str(uuid.uuid4())
+        self.__jobs[job_id] = Job(operation, inputs, None, metadata)
+        return job_id
 
-    def complete_run(self, run_id: str, outputs: list[Token], metadata: dict | None = None) -> str:
+    def complete_job(self, job_id: str, outputs: list[Token], metadata: dict | None = None) -> str:
         metadata = metadata or {}
-        assert run_id in self.__runs, run_id
-        run = self.__runs[run_id]
-        self.__runs[run_id] = Run(run.operation, run.inputs, outputs, dict(run.metadata, **metadata))
+        assert job_id in self.__jobs, job_id
+        job = self.__jobs[job_id]
+        self.__jobs[job_id] = Job(job.operation, job.inputs, outputs, dict(job.metadata, **metadata))
 
 def default_executor(runner: 'Runner', tasks: list[tuple[str, Entity, dict]]) -> None:
-    for run_id, operation, input_tokens in tasks:
-        logger.info(f"default_executor: {(run_id, operation, input_tokens)}")
+    for job_id, operation, input_tokens in tasks:
+        logger.info(f"default_executor: {(job_id, operation, input_tokens)}")
 
 class Runner:
 
@@ -148,7 +148,7 @@ class Runner:
         for address in new_tokens:
             self.__tokens[address].extend(new_tokens[address])
 
-    def list_tasks(self, max_iterations=1) -> list[tuple[str, Entity, dict[str, Any]]]:
+    def list_jobs(self, max_iterations=1) -> list[tuple[str, Entity, dict[str, Any]]]:
         tasks = []
         for operation in self.__model.operations():
             if self.__operation_status[operation.id] is not StatusEnum.ACTIVE:
@@ -160,26 +160,26 @@ class Runner:
                 input_tokens = [
                     (self.__tokens[address].pop() if self.has_token(address) else self.__experiment.new_token(address, port.default))
                     for address, port in operation.input()]
-                run_id = self.__experiment.new_run(operation.asentity(), input_tokens)
-                tasks.append((run_id, operation.asentity(), {token.address.port_id: token.value for token in input_tokens}))
+                job_id = self.__experiment.new_job(operation.asentity(), input_tokens)
+                tasks.append((job_id, operation.asentity(), {token.address.port_id: token.value for token in input_tokens}))
         return tasks
 
-    def complete_task(self, run_id: str, operation: Entity, outputs: dict[str, Any]) -> None:
+    def complete_job(self, job_id: str, operation: Entity, outputs: dict[str, Any]) -> None:
         output_tokens = [self.__experiment.new_token(PortAddress(operation.id, key), value) for key, value in outputs.items()]
-        self.__experiment.complete_run(run_id, outputs)
+        self.__experiment.complete_job(job_id, outputs)
         for token in output_tokens:
             self.__tokens[token.address].append(token)
 
     def run(self, inputs: dict) -> dict:
         self.clear_tokens()
         input_operation = Entity("input", "Operation")
-        self.complete_task(self.__experiment.new_run(input_operation, {}), input_operation, inputs)
+        self.complete_job(self.__experiment.new_job(input_operation, {}), input_operation, inputs)
         self.activate_all()
 
         while self.num_tokens() > 0:
             self.transmit_token()
-            tasks = self.list_tasks()
-            self.__executor(self, tasks)
+            jobs = self.list_jobs()
+            self.__executor(self, jobs)
             if all(self.has_token(address) for address, _ in self.model.output()):
                 break
         else:
