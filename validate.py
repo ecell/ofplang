@@ -7,7 +7,7 @@ logger = getLogger(__name__)
 import itertools
 from collections import defaultdict
 
-import entity_type
+from entity_type import TypeManager
 from definitions import Definitions
 from protocol import Protocol
 
@@ -29,7 +29,7 @@ def check_unique_id(protocol: Protocol) -> None:
         else:
             logger.error(f"Id [{entity.id}] already exists.")
             is_valid = False
-    
+
     id_list = ["input", "output"]
     for entity in protocol.operations():
         if entity.id not in id_list:
@@ -73,9 +73,9 @@ def check_definitions(definitions: Definitions) -> None:
         if "ref" not in definition:
             logger.error(f"'ref' not defined [{definition}].")
             is_valid = False
-    
+
     for definition in definitions:
-        if definition['ref'] != "Operation":  #XXX
+        if definition['ref'] != "Operation" and definition['ref'] != "IOOperation":  #XXX
             continue
         for key in ("input", "output"):
             if key not in definition:
@@ -109,12 +109,12 @@ def check_operation_types(protocol: Protocol, definitions: Definitions) -> None:
             is_valid = False
             continue
         definition = definitions.get_by_name(entity.type)
-        if definition.get("ref") != "Operation":
+        if definition.get("ref") != "Operation" and definition['ref'] != "IOOperation":
             logger.error(f"Wrong operation type [{entity.type}].")
             is_valid = False
             continue
         operation_types[entity.id] = definition
-    
+
     for connection in protocol.connections():
         if connection.input.operation_id in operation_types:
             for port in operation_types[connection.input.operation_id].get("output", []):
@@ -138,7 +138,7 @@ def check_operation_types(protocol: Protocol, definitions: Definitions) -> None:
     assert is_valid, "Invalid operation type."
 
 def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
-    type_checker = entity_type.TypeChecker(definitions)
+    type_checker = TypeManager(definitions)
 
     is_valid = True
 
@@ -200,7 +200,7 @@ def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
                     port_types[connection.output] = port.type
                     output_port = port.type
                     break
-        
+
         if not type_checker.is_acceptable(input_port, output_port):
             logger.error(f"Type mismatch [{input_port} != {output_port}] in [{connection}]")
             is_valid = False

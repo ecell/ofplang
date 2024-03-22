@@ -194,7 +194,7 @@ class Runner:
         self.__experiment = Experiment()
         self.clear_tokens()
 
-        input_operation = Entity("input", "Operation")
+        input_operation = Entity("input", "IOOperation")
         self.complete_job(self.__experiment.new_job(input_operation, {}), input_operation, inputs)
         self.activate_all()
 
@@ -208,7 +208,7 @@ class Runner:
             raise RuntimeError("Never get here.")
 
         output_tokens = [self.__tokens[address].pop() for address, _ in self.model.output()]
-        output_operation = Entity("output", "Operation")
+        output_operation = Entity("output", "IOOperation")
         self.complete_job(self.__experiment.new_job(output_operation, output_tokens), output_operation, {})
         experiment, self.__experiment = self.__experiment, None
         return experiment

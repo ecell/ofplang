@@ -14,13 +14,13 @@
 - name: Unit
   ref: String
 - name: ServePlate96
-  ref: Operation
+  ref: IOOperation
   description: Provide an empty 96-well plate.
   output:
     - id: value
       type: Plate96
 - name: StoreLabware
-  ref: Operation
+  ref: IOOperation
   description: Store the 96-well plate in the designated location. Or simply discard.
   input:
     - id: in1

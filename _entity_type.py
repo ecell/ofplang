@@ -10,7 +10,9 @@ import typing, types, inspect
 class EntityType(type): pass
 class Object(EntityType): pass
 class Data(EntityType): pass
+
 class Operation(type): pass  #XXX
+class IOOperation(Operation): pass  #XXX
 
 class Spread(typing.Generic[typing.TypeVar("T")]): pass
 class Optional(typing.Generic[typing.TypeVar("T")]): pass  # Do not use `T | None`. Use `Optional` instead.

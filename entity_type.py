@@ -7,25 +7,27 @@ logger = getLogger(__name__)
 import definitions
 
 import _entity_type
-from _entity_type import Object, Data, Operation, Spread, Optional, Array
+from _entity_type import Object, Data, Operation, IOOperation, Spread, Optional, Array
 
-class TypeChecker:
+
+class TypeManager:
 
     def __init__(self, definitions: definitions.Definitions) -> None:
         self.__definitions = definitions
 
         self.__load_entity_types()
-    
+
     def __load_entity_types(self) -> None:
         self.__primitive_types = {
             "Object": Object,
             "Data": Data,
             "Operation": Operation,
+            "IOOperation": IOOperation,
             "Spread": Spread,
             "Optional": Optional,
             "Array": Array
             }
-        
+
         for x in self.__definitions:
             name, ref = x["name"], x["ref"]
             assert name not in self.__primitive_types, name
