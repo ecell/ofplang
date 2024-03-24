@@ -24,10 +24,7 @@ class Simulator(Executor):
     def __call__(self, runner: Runner, jobs: list[tuple[str, EntityDescription, dict]]) -> None:
         for job_id, operation, inputs in jobs:
             outputs = self.execute(operation, inputs)
-
             runner.complete_job(job_id, operation, outputs)
-            if operation.type == "ServePlate96":  #XXX
-                runner.deactivate(operation.id)
 
     def execute(self, operation: EntityDescription, inputs: dict) -> None:
         logger.info(f"execute: {(operation, inputs)}")

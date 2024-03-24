@@ -33,6 +33,12 @@ class TypeManager:
             assert name not in self.__primitive_types, name
             self.__primitive_types[name] = type(name, (self.__primitive_types[ref], ), {})
 
+    def eval_primitive_type(self, expression: str) -> type:
+        assert expression in self.__primitive_types, f"Unknown entity type given [{expression}]."
+        entity_type = self.__primitive_types[expression]
+        assert issubclass(entity_type, (EntityType, )), f"[{expression}] is not an entity type."
+        return entity_type
+
     def eval_entity_type(self, expression: str) -> type:
         new_type = eval(expression, {"__builtins__": None}, self.__primitive_types)
         _entity_type.check_entity_type(new_type)

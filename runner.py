@@ -11,33 +11,47 @@ from enum import IntEnum, auto
 
 from protocol import PortAddress, Port, Protocol, PortConnection, EntityDescription
 from definitions import Definitions
+from entity_type import TypeManager, IOOperation
+import entity_type
 from validate import check_definitions, check_protocol
 
 
+@dataclasses.dataclass
+class Entity:
+    id: str
+    type: type
+
 class Operation:
 
-    def __init__(self, id: str, definition: dict) -> None:
-        self.__id = id
+    def __init__(self, entity: Entity, definition: dict) -> None:
+        self.__entity = entity
         self.__definition = definition
 
     def input(self) -> Iterator[tuple[PortAddress, Port]]:
         input = {
-            PortAddress(self.__id, port["id"]): Port(**port)
+            PortAddress(self.__entity.id, port["id"]): Port(**port)
             for port in self.__definition.get("input", [])}
         return input.items()
 
     def output(self) -> Iterator[tuple[PortAddress, Port]]:
         output = {
-            PortAddress(self.__id, port["id"]): Port(**port)
+            PortAddress(self.__entity.id, port["id"]): Port(**port)
             for port in self.__definition.get("output", [])}
         return output.items()
 
-    def asentity(self) -> EntityDescription:
-        return EntityDescription(self.__id, self.__definition["name"])
+    def asentity(self) -> Entity:
+        return self.__entity
+
+    def asentitydesc(self) -> EntityDescription:
+        return EntityDescription(self.__entity.id, self.__definition["name"])
 
     @property
     def id(self) -> str:
-        return self.__id
+        return self.__entity.id
+
+    @property
+    def type(self) -> type:
+        return self.__entity.type
 
     @property
     def definition(self) -> dict:
@@ -48,12 +62,16 @@ class Model:
     def __init__(self, protocol: Protocol, definitions: Definitions) -> None:
         self.__protocol = protocol
         self.__definitions = definitions
+
+        self.__type_manager = TypeManager(self.__definitions)
         self.__load()
 
     def __load(self) -> None:
-        self.__operations = OrderedDict([
-            (operation.id, Operation(operation.id, self.__definitions.get_by_name(operation.type)))
-            for operation in self.__protocol.operations()])
+        self.__operations = OrderedDict()
+        for operation in self.__protocol.operations():
+            operation_type = self.__type_manager.eval_primitive_type(operation.type)
+            assert issubclass(operation_type, entity_type.Operation), f"[{operation.type}] is not Operation."
+            self.__operations[operation.id] = Operation(Entity(operation.id, operation_type), self.__definitions.get_by_name(operation.type))
 
     def get_by_id(self, id):
         return self.__operations[id]
@@ -171,17 +189,21 @@ class Runner:
     def list_jobs(self, max_iterations=1) -> list[tuple[str, EntityDescription, dict[str, Any]]]:
         jobs = []
         for operation in self.__model.operations():
-            if self.__operation_status[operation.id] is not StatusEnum.ACTIVE:
-                continue
             for _ in range(max_iterations):
-                if any(port.default is None and not self.has_token(address) for address, port in operation.input()):
+                if self.__operation_status[operation.id] is not StatusEnum.ACTIVE:
+                    continue
+                elif any(port.default is None and not self.has_token(address) for address, port in operation.input()):
                     continue
                 # pop tokens here
                 input_tokens = [
                     (self.__tokens[address].pop() if self.has_token(address) else Token(address, port.default))
                     for address, port in operation.input()]
-                job_id = self.__experiment.new_job(operation.asentity(), input_tokens)
-                jobs.append((job_id, operation.asentity(), {token.address.port_id: token.value for token in input_tokens}))
+                job_id = self.__experiment.new_job(operation.asentitydesc(), input_tokens)
+                jobs.append((job_id, operation.asentitydesc(), {token.address.port_id: token.value for token in input_tokens}))
+
+                # IOOperation fires only once.
+                if issubclass(operation.type, IOOperation):
+                    self.deactivate(operation.id)
         return jobs
 
     def complete_job(self, job_id: str, operation: EntityDescription, outputs: dict[str, Any]) -> None:
