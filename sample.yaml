@@ -12,7 +12,7 @@ operations:
     input:
       - id: channel
         type: Integer
-        value: 1
+        value: 0
   - id: read_absorbance1
     type: ReadAbsorbance3Colors
   - id: store_labware1

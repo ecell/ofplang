@@ -223,10 +223,12 @@ class Runner:
         for token in output_tokens:
             self.__tokens[token.address].append(token)
 
-    def run(self, inputs: dict) -> Experiment:
+    def run(self, inputs: dict, *, executor: ExecutorBase | None = None) -> Experiment:
+        executor = executor or self.__executor
+
         self.__experiment = Experiment()
         self.clear_tokens()
-        self.__executor.initialize(self)
+        executor.initialize(self)
 
         for address, _ in self.__model.input():
             if address.port_id not in inputs:
@@ -239,7 +241,7 @@ class Runner:
         while self.num_tokens() > 0:
             self.transmit_token()
             jobs = self.list_jobs()
-            self.__executor(self, jobs)
+            executor(self, jobs)
             if all(self.has_token(address) for address, _ in self.model.output()):
                 break
         else:
