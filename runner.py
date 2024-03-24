@@ -192,7 +192,8 @@ class Runner:
                 new_token = Token(connection.output, token.value)
                 new_tokens[new_token.address].append(new_token)
         for connection in self.__model.connections():
-            del self.__tokens[connection.input]
+            if connection.input in self.__tokens:
+                del self.__tokens[connection.input]
         for address in new_tokens:
             self.__tokens[address].extend(new_tokens[address])
 
@@ -226,6 +227,10 @@ class Runner:
         self.__experiment = Experiment()
         self.clear_tokens()
         self.__executor.initialize(self)
+
+        for address, _ in self.__model.input():
+            if address.port_id not in inputs:
+                raise RuntimeError(f"Input [{address.port_id}] is missing.")
 
         input_operation = EntityDescription("input", "IOOperation")
         self.complete_job(self.__experiment.new_job(input_operation, {}), input_operation, inputs)
