@@ -9,6 +9,10 @@ operations:
     type: ServePlate96
   - id: dispense_liquid1
     type: DispenseLiquid96Wells
+    input:
+      - id: channel
+        type: Integer
+        value: 1
   - id: read_absorbance1
     type: ReadAbsorbance3Colors
   - id: store_labware1
@@ -44,4 +48,3 @@ connections:
     output:
       - output
       - data
-  

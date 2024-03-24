@@ -6,6 +6,7 @@ logger = getLogger(__name__)
 
 import pathlib, io
 import yaml
+from copy import deepcopy
 
 
 class Definitions:
@@ -34,7 +35,7 @@ class Definitions:
     def get_by_name(self, name: str) -> dict:
         for x in self.__data:
             if x["name"] == name:
-                return x.copy()  #XXX: deepcopy?
+                return deepcopy(x)
         raise ValueError(f"Unknown name [{name}]")
 
     def has(self, name: str) -> bool:
@@ -45,4 +46,4 @@ class Definitions:
 
     def __iter__(self):
         for x in self.__data:
-            yield x.copy()  #XXX: deepcopy?
+            yield deepcopy(x)

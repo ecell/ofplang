@@ -10,8 +10,8 @@ handler.setFormatter(formatter)
 # logger = getLogger(__name__)
 # logger.addHandler(handler)
 # logger.setLevel(INFO)
-getLogger('simulator').addHandler(handler)
-getLogger('simulator').setLevel(INFO)
+getLogger('executors').addHandler(handler)
+getLogger('executors').setLevel(INFO)
 
 import numpy
 

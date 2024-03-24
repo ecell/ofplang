@@ -5,6 +5,7 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 from typing import Iterator, NamedTuple
+from copy import deepcopy
 import pathlib, io, dataclasses, sys
 import yaml
 
@@ -76,7 +77,10 @@ class Protocol:
         return (Port(**value) for value in self.__data.get("output", ()))
 
     def operations(self) -> Iterator[EntityDescription]:
-        return (EntityDescription(**value) for value in self.__data.get("operations", ()))
+        return (EntityDescription(id=value["id"], type=value["type"]) for value in self.__data.get("operations", ()))
+
+    def operations_with_dict(self) -> Iterator[tuple[EntityDescription, dict]]:
+        return ((EntityDescription(id=value["id"], type=value["type"]), deepcopy(value)) for value in self.__data.get("operations", ()))
 
     def connections(self) -> Iterator[PortConnection]:
         return (

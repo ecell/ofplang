@@ -68,10 +68,16 @@ class Model:
 
     def __load(self) -> None:
         self.__operations = OrderedDict()
-        for operation in self.__protocol.operations():
+        for operation, operation_dict in self.__protocol.operations_with_dict():
             operation_type = self.__type_manager.eval_primitive_type(operation.type)
             assert issubclass(operation_type, entity_type.Operation), f"[{operation.type}] is not Operation."
-            self.__operations[operation.id] = Operation(Entity(operation.id, operation_type), self.__definitions.get_by_name(operation.type))
+            definition = self.__definitions.get_by_name(operation.type)
+            if "input" in operation_dict:
+                input_defaults = {port["id"]: {"value": port["value"], "type": port["type"]} for port in operation_dict["input"]}
+                for port in definition["input"]:
+                    if port["id"] in input_defaults:
+                        port["default"] = input_defaults[port["id"]]
+            self.__operations[operation.id] = Operation(Entity(operation.id, operation_type), definition)
 
     def get_by_id(self, id):
         return self.__operations[id]

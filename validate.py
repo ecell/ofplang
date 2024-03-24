@@ -143,11 +143,30 @@ def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
     is_valid = True
 
     operation_types = {}
-    for entity in protocol.operations():
+    for entity, operation_dict in protocol.operations_with_dict():
         definition = definitions.get_by_name(entity.type)
+        port_defaults = {}
+        for port_default in operation_dict.get("input", ()):
+            assert "id" in port_default
+            assert "type" in port_default
+            assert "value" in port_default
+            port_defaults[port_default["id"]] = {"value": port_default["value"], "type": port_default["type"]}
+
+        #XXX: This override the existing defaults.
+        #XXX: The original defaults has no chance to be tested.
+        for port in definition.get("input", ()):
+            if port["id"] in port_defaults:
+                port["default"] = port_defaults[port["id"]]
+                del port_defaults[port["id"]]
+
+        if len(port_defaults) > 0:
+            for port_id in port_defaults.keys():
+                logger.error(f"No corresponding port found for the given default [{(entity.id, port_id)}]")
+            is_valid = False
+
         operation_types[entity.id] = definition
 
-        for port in definition.get("input", []):
+        for port in definition.get("input", ()):
             cnt = 0
             for connection in protocol.connections():
                 if connection.output == (entity.id, port["id"]):
@@ -156,7 +175,7 @@ def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
                 logger.error(f"Missing connection [{(entity.id, port['id'])}]")
                 is_valid = False
 
-        for port in definition.get("output", []):
+        for port in definition.get("output", ()):
             if type_checker.is_data(port["type"]):
                 continue
             cnt = 0
