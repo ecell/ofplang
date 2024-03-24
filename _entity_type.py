@@ -69,6 +69,17 @@ def check_entity_type(one):
     else:
         assert issubclass(one, (EntityType, ))
 
+def to_str(one) -> str:
+    # Union
+    if is_union(one):
+        return "|".join(to_str(x) for x in one.__args__)
+    # typing._GenericAlias
+    if is_generic(one):
+        s = ",".join(to_str(x) for x in one.__args__)
+        s = f"{one.__origin__.__name__}[{s}]"
+        return s
+    return one.__name__
+
 
 if __name__ == "__main__":
     class Labware(Object): pass
@@ -126,3 +137,5 @@ if __name__ == "__main__":
     assert is_object(Spread[Spread[Labware | Float]])
     assert is_object(Spread[Float | Spread[Labware]])
     assert is_data(Spread[Float | Array[Integer]])
+
+    assert to_str(Spread[Float | Array[Integer]]) == "Spread[Float|Array[Integer]]"
