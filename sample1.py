@@ -19,7 +19,7 @@ from definitions import Definitions
 from protocol import Protocol
 from validate import check_definitions, check_protocol
 from runner import Runner
-from simulator import Simulator
+from executors import Simulator
 
 
 definitions = Definitions('./manipulate.yaml')
@@ -30,8 +30,6 @@ check_protocol(protocol, definitions)
 protocol.dump()
 protocol.graph("graph.png")
 
-runner = Runner(protocol, definitions)
-runner.executor = Simulator()
-
+runner = Runner(protocol, definitions, executor=Simulator())
 experiment = runner.run(inputs={"volume": {"value": numpy.random.uniform(0, 200, 96), "type": "Array[Float]"}})
 print(experiment.output)

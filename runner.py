@@ -145,18 +145,22 @@ class Experiment:
     def running(self) -> ValuesView[Job]:
         return self.__running_jobs.values()
 
-def default_executor(runner: 'Runner', tasks: list[tuple[str, EntityDescription, dict]]) -> None:
-    for job_id, operation, input_tokens in tasks:
-        logger.info(f"default_executor: {(job_id, operation, input_tokens)}")
+class ExecutorBase:
+
+    def initialize(self, runner: "Runner") -> None:
+        pass
+
+    def __call__(self, runner: "Runner", jobs: list[tuple[str, EntityDescription, dict]]) -> None:
+        raise NotImplementedError()
 
 class Runner:
 
-    def __init__(self, protocol: Protocol, definitions: Definitions) -> None:
+    def __init__(self, protocol: Protocol, definitions: Definitions, executor: ExecutorBase | None = None) -> None:
         self.__model = Model(protocol, definitions)
         self.__tokens = defaultdict(deque)
 
         self.__operation_status = {operation.id: StatusEnum.INACTIVE for operation in self.__model.operations()}
-        self.__executor = default_executor
+        self.__executor = executor
         self.__experiment: Experiment | None = None
 
     @property
@@ -215,6 +219,7 @@ class Runner:
     def run(self, inputs: dict) -> Experiment:
         self.__experiment = Experiment()
         self.clear_tokens()
+        self.__executor.initialize(self)
 
         input_operation = EntityDescription("input", "IOOperation")
         self.complete_job(self.__experiment.new_job(input_operation, {}), input_operation, inputs)

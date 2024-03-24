@@ -5,21 +5,28 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 import uuid
+from dataclasses import dataclass, field
 from collections import defaultdict
 import numpy
+import numpy.typing
 
-from runner import Runner
+from runner import Runner, ExecutorBase
 from protocol import EntityDescription
 
-class Executor:
 
-    def __call__(self, runner: Runner, jobs: list[tuple[str, EntityDescription, dict]]) -> None:
-        raise NotImplementedError()
+@dataclass
+class Plate96:
+    id: str
+    contents: dict[int, numpy.typing.ArrayLike] = field(default_factory=lambda: defaultdict(lambda: numpy.zeros(96, dtype=float)))
 
-class Simulator(Executor):
+class Simulator(ExecutorBase):
 
     def __init__(self):
         pass
+
+    def initialize(self, runner: "Runner") -> None:
+        # global state
+        self.__plates: dict[str, Plate96] = {}
 
     def __call__(self, runner: Runner, jobs: list[tuple[str, EntityDescription, dict]]) -> None:
         for job_id, operation, inputs in jobs:
@@ -31,20 +38,22 @@ class Simulator(Executor):
 
         outputs = {}
         if operation.type == "ServePlate96":
-            value = {"id": str(uuid.uuid4()), "contents": defaultdict(lambda: numpy.zeros(96, dtype=float))}
-            outputs["value"] = {"value": value, "type": "Plate96"}
+            plate_id = str(uuid.uuid4())
+            self.__plates[plate_id] = Plate96(plate_id)
+            outputs["value"] = {"value": {"id": plate_id}, "type": "Plate96"}
         elif operation.type == "StoreLabware":
             pass
         elif operation.type == "DispenseLiquid96Wells":
+            outputs["out1"] = inputs["in1"]
+
             channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
-            value = inputs["in1"]["value"]  # deepcopy?
-            value["contents"][channel] += volume
-            outputs["out1"] = {"value": value, "type": "Plate96"}
+            plate_id = inputs["in1"]["value"]["id"]
+            self.__plates[plate_id].contents[channel] += volume
         elif operation.type == "ReadAbsorbance3Colors":
             outputs["out1"] = inputs["in1"]
 
-            # value = [numpy.zeros(96, dtype=float)]  #XXX
-            contents = sum(inputs["in1"]["value"]["contents"].values())
+            plate_id = inputs["in1"]["value"]["id"]
+            contents = sum(self.__plates[plate_id].contents.values())
             value = contents ** 3 / (contents ** 3 + 100.0 ** 3)  # Sigmoid
             value += numpy.random.normal(scale=0.05, size=value.shape)
 

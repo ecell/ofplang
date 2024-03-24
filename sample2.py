@@ -4,7 +4,7 @@
 import numpy
 
 from runner import run
-from simulator import Simulator
+from executors import Simulator
 
 inputs = {"volume": {"value": numpy.random.uniform(0, 200, 96), "type": "Array[Float]"}}
 print(f"inputs = {inputs}")
