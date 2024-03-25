@@ -89,8 +89,11 @@ class GaussianProcessExecutor(SimulatorBase):
 
         from sklearn.gaussian_process import GaussianProcessRegressor
         from sklearn.gaussian_process.kernels import ConstantKernel, WhiteKernel, RBF
+        from modAL.models import ActiveLearner
+
         kernel = ConstantKernel() * RBF() + WhiteKernel()
-        self.__regressor = GaussianProcessRegressor(kernel=kernel, alpha=0, random_state=0)
+        self.__learner = ActiveLearner(
+            estimator=GaussianProcessRegressor(kernel=kernel, alpha=0, random_state=0))
 
     def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> None:
         try:
@@ -102,7 +105,7 @@ class GaussianProcessExecutor(SimulatorBase):
                 contents = sum(self.get_plate(plate_id).contents.values())
                 if outputs_training is not None:
                     # train here
-                    self.__fit(contents, outputs_training["value"]["value"][0])
+                    self.__teach(contents, outputs_training["value"]["value"][0])
                 value, _ = self.__predict(contents)
                 outputs["value"] = {"value": [value], "type": "Spread[Array[Float]]"}
                 outputs["out1"] = inputs["in1"]
@@ -110,11 +113,11 @@ class GaussianProcessExecutor(SimulatorBase):
                 raise err
         return outputs
 
-    def __fit(self, x_training: ArrayLike, y_training: ArrayLike) -> None:
-        self.__regressor.fit(x_training.reshape(-1, 1), y_training)
+    def __teach(self, x_training: ArrayLike, y_training: ArrayLike) -> None:
+        self.__learner.teach(x_training.reshape(-1, 1), y_training)
 
     def __predict(self, contents: ArrayLike) -> tuple[ArrayLike, ArrayLike]:
-        pred_mu, pred_sigma = self.__regressor.predict(contents.reshape(-1, 1), return_std=True)
+        pred_mu, pred_sigma = self.__learner.predict(contents.reshape(-1, 1), return_std=True)
         pred_mu, pred_sigma = pred_mu.ravel(), pred_sigma.ravel()
         return pred_mu, pred_sigma
 
