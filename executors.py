@@ -10,7 +10,7 @@ from collections import defaultdict
 import numpy
 from numpy.typing import ArrayLike
 
-from runner import Runner, ExecutorBase
+from runner import Runner, ExecutorBase, Experiment
 from protocol import EntityDescription
 
 class OperationNotSupportedError(RuntimeError):
@@ -26,12 +26,13 @@ class SimulatorBase(ExecutorBase):
     def __init__(self) -> None:
         pass
 
-    def initialize(self, runner: "Runner") -> None:
+    def initialize(self) -> None:
         # global state
         self.__plates: dict[str, Plate96] = {}
 
-    def new_plate(self) -> str:
-        plate_id = str(uuid.uuid4())
+    def new_plate(self, plate_id: str | None = None) -> str:
+        plate_id = plate_id or str(uuid.uuid4())
+        assert plate_id not in self.__plates
         self.__plates[plate_id] = Plate96(plate_id)
         return plate_id
 
@@ -43,12 +44,12 @@ class SimulatorBase(ExecutorBase):
             outputs = self.execute(operation, inputs)
             runner.complete_job(job_id, operation, outputs)
 
-    def execute(self, operation: EntityDescription, inputs: dict) -> None:
+    def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> None:
         logger.info(f"execute: {(operation, inputs)}")
 
         outputs = {}
         if operation.type == "ServePlate96":
-            plate_id = self.new_plate()
+            plate_id = self.new_plate(None if outputs_training is None else outputs_training["value"]["value"]["id"])
             outputs["value"] = {"value": {"id": plate_id}, "type": "Plate96"}
         elif operation.type == "StoreLabware":
             pass
@@ -58,14 +59,16 @@ class SimulatorBase(ExecutorBase):
             self.get_plate(plate_id).contents[channel] += volume
             outputs["out1"] = inputs["in1"]
         else:
-            raise OperationNotSupportedError(f"Undefined operation given [{operation.type}].")
+            raise OperationNotSupportedError(f"Undefined operation given [{operation.id}, {operation.type}].")
         return outputs
 
 class Simulator(SimulatorBase):
 
-    def execute(self, operation: EntityDescription, inputs: dict) -> None:
+    def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> None:
+        assert outputs_training is None
+
         try:
-            outputs = super().execute(operation, inputs)
+            outputs = super().execute(operation, inputs, outputs_training)
         except OperationNotSupportedError as err:
             outputs = {}
             if operation.type == "ReadAbsorbance3Colors":
@@ -86,27 +89,41 @@ class GaussianProcessExecutor(SimulatorBase):
 
         from sklearn.gaussian_process import GaussianProcessRegressor
         from sklearn.gaussian_process.kernels import ConstantKernel, WhiteKernel, RBF
-
         kernel = ConstantKernel() * RBF() + WhiteKernel()
-        self._regressor = GaussianProcessRegressor(kernel=kernel, alpha=0, random_state=0)
+        self.__regressor = GaussianProcessRegressor(kernel=kernel, alpha=0, random_state=0)
 
-    def execute(self, operation: EntityDescription, inputs: dict) -> None:
+    def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> None:
         try:
-            outputs = super().execute(operation, inputs)
+            outputs = super().execute(operation, inputs, outputs_training)
         except OperationNotSupportedError as err:
             outputs = {}
             if operation.type == "ReadAbsorbance3Colors":
                 plate_id = inputs["in1"]["value"]["id"]
                 contents = sum(self.get_plate(plate_id).contents.values())
-                value, _ = self.predict(contents)
+                if outputs_training is not None:
+                    # train here
+                    self.__fit(contents, outputs_training["value"]["value"][0])
+                value, _ = self.__predict(contents)
                 outputs["value"] = {"value": [value], "type": "Spread[Array[Float]]"}
                 outputs["out1"] = inputs["in1"]
             else:
                 raise err
         return outputs
 
-    def predict(self, contents: ArrayLike) -> tuple[ArrayLike, ArrayLike]:
-        print("predict:", contents)
-        pred_mu, pred_sigma = self._regressor.predict(contents.reshape(-1, 1), return_std=True)
+    def __fit(self, x_training: ArrayLike, y_training: ArrayLike) -> None:
+        self.__regressor.fit(x_training.reshape(-1, 1), y_training)
+
+    def __predict(self, contents: ArrayLike) -> tuple[ArrayLike, ArrayLike]:
+        pred_mu, pred_sigma = self.__regressor.predict(contents.reshape(-1, 1), return_std=True)
         pred_mu, pred_sigma = pred_mu.ravel(), pred_sigma.ravel()
         return pred_mu, pred_sigma
+
+    def teach(self, experiment: Experiment) -> None:
+        self.initialize()
+        for job in experiment.jobs():
+            if job.operation.id == "input" or job.operation.id == "output":
+                continue
+
+            inputs = {token.address.port_id: token.value for token in job.inputs}
+            outputs = {token.address.port_id: token.value for token in job.outputs}
+            self.execute(job.operation, inputs, outputs)

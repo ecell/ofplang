@@ -153,7 +153,7 @@ class Experiment:
 
 class ExecutorBase:
 
-    def initialize(self, runner: "Runner") -> None:
+    def initialize(self) -> None:
         pass
 
     def __call__(self, runner: "Runner", jobs: list[tuple[str, EntityDescription, dict]]) -> None:
@@ -219,7 +219,7 @@ class Runner:
 
     def complete_job(self, job_id: str, operation: EntityDescription, outputs: dict[str, Any]) -> None:
         output_tokens = [Token(PortAddress(operation.id, key), value) for key, value in outputs.items()]
-        self.__experiment.complete_job(job_id, outputs)
+        self.__experiment.complete_job(job_id, output_tokens)
         for token in output_tokens:
             self.__tokens[token.address].append(token)
 
@@ -228,7 +228,7 @@ class Runner:
 
         self.__experiment = Experiment()
         self.clear_tokens()
-        executor.initialize(self)
+        executor.initialize()
 
         for address, _ in self.__model.input():
             if address.port_id not in inputs:
