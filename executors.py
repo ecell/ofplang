@@ -65,7 +65,7 @@ class SimulatorBase(ExecutorBase):
 class Simulator(SimulatorBase):
 
     def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> None:
-        assert outputs_training is None
+        assert outputs_training is None, "'teach' is not supported."
 
         try:
             outputs = super().execute(operation, inputs, outputs_training)
@@ -95,6 +95,14 @@ class GaussianProcessExecutor(SimulatorBase):
         self.__learner = ActiveLearner(
             estimator=GaussianProcessRegressor(kernel=kernel, alpha=0, random_state=0))
 
+    def initialize(self) -> None:
+        super().initialize()
+        self.__uncertainty = 0.0
+
+    @property
+    def uncertainty(self):
+        return self.__uncertainty
+
     def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> None:
         try:
             outputs = super().execute(operation, inputs, outputs_training)
@@ -106,9 +114,11 @@ class GaussianProcessExecutor(SimulatorBase):
                 if outputs_training is not None:
                     # train here
                     self.__teach(contents, outputs_training["value"]["value"][0])
-                value, _ = self.__predict(contents)
+                value, std = self.__predict(contents)
                 outputs["value"] = {"value": [value], "type": "Spread[Array[Float]]"}
                 outputs["out1"] = inputs["in1"]
+
+                self.__uncertainty = max(self.__uncertainty, std.max())
             else:
                 raise err
         return outputs
