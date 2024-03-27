@@ -4,9 +4,10 @@ from logging import getLogger
 
 logger = getLogger(__name__)
 
-import uuid
+import uuid, itertools
 from dataclasses import dataclass, field
 from collections import defaultdict
+from typing import Iterable
 import numpy
 from numpy.typing import ArrayLike
 
@@ -140,3 +141,15 @@ class GaussianProcessExecutor(SimulatorBase):
             inputs = {token.address.port_id: token.value for token in job.inputs}
             outputs = {token.address.port_id: token.value for token in job.outputs}
             self.execute(job.operation, inputs, outputs)
+
+    def query(self, runner: Runner | Iterable[Runner], inputs: Iterable[dict]) -> tuple[int, float]:
+        if isinstance(runner, Runner):
+            runner = itertools.repeat(runner)
+        idx_query, uncertainty_query = None, 0.0
+        for idx, (runner_, inputs_) in enumerate(zip(runner, inputs)):
+            _ = runner_.run(inputs=inputs_, executor=self)
+            if idx_query is None or self.uncertainty > uncertainty_query:
+                idx_query, uncertainty_query = idx, self.uncertainty
+        if idx_query is None:
+            raise RuntimeError(f"No sample.")
+        return idx_query, uncertainty_query

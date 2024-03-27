@@ -14,8 +14,7 @@ protocol = Protocol("./sample.yaml")
 runner = Runner(protocol, definitions, executor=Simulator())
 
 # initial training set
-value = numpy.zeros(96, dtype=float)
-value[: 8] = numpy.random.uniform(0, 200, 8)
+value = numpy.pad(numpy.random.uniform(0, 200, 8), (0, 96 - 8), 'constant')
 inputs_training = {"volume": {"value": value, "type": "Array[Float]"}}
 print(f"inputs = {inputs_training}")
 experiment = runner.run(inputs=inputs_training)
@@ -40,17 +39,10 @@ input_samples = [
 
 # active learning
 for _ in range(12):
-    idx_query, uncertainty_query = None, 0
-    for idx, inputs in enumerate(input_samples):
-        # print(f"inputs = {inputs}")
-        experiment = runner.run(inputs=inputs, executor=executor)
-        # print(f"outputs = {prediction.output}")
-        # print(f"uncertainty = {executor.uncertainty}")
-        if executor.uncertainty > uncertainty_query:
-            idx_query, uncertainty_query = idx, executor.uncertainty
-
-    inputs_query = input_samples[idx_query]
+    idx_query, uncertainty_query = executor.query(runner, input_samples)
     print(f"query, uncertainty = {idx_query}, {uncertainty_query}")
+    inputs_query = input_samples[idx_query]
+
     # print(f"inputs = {inputs_query}")
     experiment = runner.run(inputs=inputs_query)
     # print(f"outputs = {experiment.output}")
