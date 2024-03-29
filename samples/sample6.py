@@ -3,14 +3,14 @@
 
 import numpy
 
-from definitions import Definitions
-from protocol import Protocol
-from runner import Runner
-from executors import Simulator, GaussianProcessExecutor
+from ofplang.definitions import Definitions
+from ofplang.protocol import Protocol
+from ofplang.runner import Runner
+from ofplang.executors import Simulator, GaussianProcessExecutor
 
 
 definitions = Definitions('./manipulate.yaml')
-protocol = Protocol("./sample.yaml")
+protocol = Protocol("./sample1.yaml")
 runner = Runner(protocol, definitions, executor=Simulator())
 
 # initial training set

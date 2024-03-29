@@ -4,10 +4,9 @@ from logging import getLogger
 
 logger = getLogger(__name__)
 
-import definitions
-
-import _entity_type
-from _entity_type import EntityType, Object, Data, Operation, IOOperation, Spread, Optional, Array
+from . import definitions
+from . import _entity_type
+from ._entity_type import EntityType, Object, Data, Operation, IOOperation, Spread, Optional, Array
 
 
 class TypeManager:

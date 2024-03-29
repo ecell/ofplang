@@ -11,8 +11,8 @@ from typing import Iterable
 import numpy
 from numpy.typing import ArrayLike
 
-from runner import Runner, ExecutorBase, Experiment
-from protocol import EntityDescription
+from .runner import Runner, ExecutorBase, Experiment
+from .protocol import EntityDescription
 
 class OperationNotSupportedError(RuntimeError):
     pass

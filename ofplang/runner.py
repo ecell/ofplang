@@ -9,11 +9,11 @@ from collections import defaultdict, deque, OrderedDict
 from typing import Any, Iterator, Callable, ValuesView
 from enum import IntEnum, auto
 
-from protocol import PortAddress, Port, Protocol, PortConnection, EntityDescription
-from definitions import Definitions
-from entity_type import TypeManager, IOOperation
-import entity_type
-from validate import check_definitions, check_protocol
+from .protocol import PortAddress, Port, Protocol, PortConnection, EntityDescription
+from .definitions import Definitions
+from .entity_type import TypeManager, IOOperation
+from . import entity_type
+from .validate import check_definitions, check_protocol
 
 
 @dataclasses.dataclass

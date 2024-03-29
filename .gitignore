@@ -1,9 +1,9 @@
 # Script outputs
-graph.gv
-graph.png
-optimization_history.png
-GPR.png
-comparison.png
+samples/graph.gv
+samples/graph.png
+samples/optimization_history.png
+samples/GPR.png
+samples/comparison.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

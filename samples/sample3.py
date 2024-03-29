@@ -3,15 +3,15 @@
 
 import numpy
 
-from definitions import Definitions
-from protocol import Protocol
-from validate import check_definitions, check_protocol
-from runner import Runner
-from executors import Simulator
+from ofplang.definitions import Definitions
+from ofplang.protocol import Protocol
+from ofplang.validate import check_definitions, check_protocol
+from ofplang.runner import Runner
+from ofplang.executors import Simulator
 
 definitions = Definitions('./manipulate.yaml')
 check_definitions(definitions)
-protocol = Protocol("./sample.yaml")
+protocol = Protocol("./sample1.yaml")
 check_protocol(protocol, definitions)
 runner = Runner(protocol, definitions, executor=Simulator())
 

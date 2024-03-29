@@ -7,9 +7,9 @@ logger = getLogger(__name__)
 import itertools
 from collections import defaultdict
 
-from entity_type import TypeManager
-from definitions import Definitions
-from protocol import Protocol
+from .entity_type import TypeManager
+from .definitions import Definitions
+from .protocol import Protocol
 
 
 def check_protocol(protocol: Protocol, definitions: Definitions | None = None) -> None:
