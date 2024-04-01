@@ -184,6 +184,8 @@ class _Preprocessor:
             script = inputs["script"]["value"]
             localdict = {key: value["value"] for key, value in inputs.items() if key != "script"}
             exec(script, {}, localdict)  #XXX: Not safe
+            for _, port in operation.output():
+                assert port.id in localdict, f"No output for [{port.id}]"
             outputs = {port.id: {"value": localdict[port.id], "type": port.type} for _, port in operation.output()}
         else:
             raise OperationNotSupportedError(f"Undefined operation given [{operation.id}, {operation.type}].")
