@@ -7,7 +7,7 @@ logger = getLogger(__name__)
 import uuid, itertools
 from dataclasses import dataclass, field
 from collections import defaultdict
-from typing import Iterable
+from collections.abc import Iterable, MutableMapping
 import numpy
 from numpy.typing import ArrayLike
 
@@ -20,7 +20,7 @@ class OperationNotSupportedError(RuntimeError):
 @dataclass
 class Plate96:
     id: str
-    contents: dict[int, ArrayLike] = field(default_factory=lambda: defaultdict(lambda: numpy.zeros(96, dtype=float)))
+    contents: defaultdict[int, numpy.ndarray] = field(default_factory=lambda: defaultdict(lambda: numpy.zeros(96, dtype=float)))
 
 class SimulatorBase(ExecutorBase):
 
@@ -40,12 +40,12 @@ class SimulatorBase(ExecutorBase):
     def get_plate(self, plate_id: str) -> Plate96:
         return self.__plates[plate_id]
 
-    def __call__(self, runner: Runner, jobs: list[tuple[str, EntityDescription, dict]]) -> None:
+    def __call__(self, runner: Runner, jobs: Iterable[tuple[str, EntityDescription, dict]]) -> None:
         for job_id, operation, inputs in jobs:
             outputs = self.execute(operation, inputs)
             runner.complete_job(job_id, operation, outputs)
 
-    def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> None:
+    def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         logger.info(f"execute: {(operation, inputs)}")
 
         outputs = {}
@@ -65,7 +65,7 @@ class SimulatorBase(ExecutorBase):
 
 class Simulator(SimulatorBase):
 
-    def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> None:
+    def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         assert outputs_training is None, "'teach' is not supported."
 
         try:
@@ -74,8 +74,9 @@ class Simulator(SimulatorBase):
             outputs = {}
             if operation.type == "ReadAbsorbance3Colors":
                 plate_id = inputs["in1"]["value"]["id"]
-                contents = sum(self.get_plate(plate_id).contents.values())
-                value = contents ** 3 / (contents ** 3 + 100.0 ** 3)  # Sigmoid
+                start = numpy.zeros(96, dtype=float)  # self.get_plate(plate_id).contents.default_factory()
+                contents = sum(self.get_plate(plate_id).contents.values(), start)
+                value: numpy.ndarray = contents ** 3 / (contents ** 3 + 100.0 ** 3)  # Sigmoid
                 value += numpy.random.normal(scale=0.05, size=value.shape)
                 outputs["value"] = {"value": [value], "type": "Spread[Array[Float]]"}
                 outputs["out1"] = inputs["in1"]
@@ -88,9 +89,9 @@ class GaussianProcessExecutor(SimulatorBase):
     def __init__(self) -> None:
         super().__init__()
 
-        from sklearn.gaussian_process import GaussianProcessRegressor
-        from sklearn.gaussian_process.kernels import ConstantKernel, WhiteKernel, RBF
-        from modAL.models import ActiveLearner
+        from sklearn.gaussian_process import GaussianProcessRegressor  # type: ignore
+        from sklearn.gaussian_process.kernels import ConstantKernel, WhiteKernel, RBF  # type: ignore
+        from modAL.models import ActiveLearner  # type: ignore
 
         kernel = ConstantKernel() * RBF() + WhiteKernel()
         self.__learner = ActiveLearner(
@@ -104,18 +105,19 @@ class GaussianProcessExecutor(SimulatorBase):
     def uncertainty(self):
         return self.__uncertainty
 
-    def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> None:
+    def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         try:
             outputs = super().execute(operation, inputs, outputs_training)
         except OperationNotSupportedError as err:
             outputs = {}
             if operation.type == "ReadAbsorbance3Colors":
                 plate_id = inputs["in1"]["value"]["id"]
-                contents = sum(self.get_plate(plate_id).contents.values())
+                start = numpy.zeros(96, dtype=float)  # self.get_plate(plate_id).contents.default_factory()
+                contents = sum(self.get_plate(plate_id).contents.values(), start)
                 if outputs_training is not None:
                     # train here
                     self.__teach(contents, outputs_training["value"]["value"][0])
-                value, std = self.__predict(contents)
+                (value, std) = self.__predict(contents)
                 outputs["value"] = {"value": [value], "type": "Spread[Array[Float]]"}
                 outputs["out1"] = inputs["in1"]
 
@@ -124,10 +126,10 @@ class GaussianProcessExecutor(SimulatorBase):
                 raise err
         return outputs
 
-    def __teach(self, x_training: ArrayLike, y_training: ArrayLike) -> None:
+    def __teach(self, x_training: numpy.ndarray, y_training: numpy.ndarray) -> None:
         self.__learner.teach(x_training.reshape(-1, 1), y_training)
 
-    def __predict(self, contents: ArrayLike) -> tuple[ArrayLike, ArrayLike]:
+    def __predict(self, contents: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray]:
         pred_mu, pred_sigma = self.__learner.predict(contents.reshape(-1, 1), return_std=True)
         pred_mu, pred_sigma = pred_mu.ravel(), pred_sigma.ravel()
         return pred_mu, pred_sigma
@@ -139,6 +141,7 @@ class GaussianProcessExecutor(SimulatorBase):
                 continue
 
             inputs = {token.address.port_id: token.value for token in job.inputs}
+            assert job.outputs is not None
             outputs = {token.address.port_id: token.value for token in job.outputs}
             self.execute(job.operation, inputs, outputs)
 

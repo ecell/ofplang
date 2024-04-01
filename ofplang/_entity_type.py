@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# mypy: disable-error-code="misc"
 from logging import getLogger
 
 logger = getLogger(__name__)

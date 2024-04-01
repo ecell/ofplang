@@ -5,8 +5,7 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 from . import definitions
-from . import _entity_type
-from ._entity_type import EntityType, Object, Data, Operation, IOOperation, Spread, Optional, Array, BuiltinOperation, RunScript
+from ._entity_type import EntityType, Object, Data, Operation, IOOperation, Spread, Optional, Array, BuiltinOperation, RunScript, check_entity_type, is_data, is_object, is_acceptable
 
 
 class TypeManager:
@@ -45,14 +44,14 @@ class TypeManager:
 
     def eval_entity_type(self, expression: str) -> type:
         new_type = eval(expression, {"__builtins__": None}, self.__primitive_types)
-        _entity_type.check_entity_type(new_type)
+        check_entity_type(new_type)
         return new_type
 
     def is_data(self, one: str) -> bool:
-        return _entity_type.is_data(self.eval_entity_type(one))
+        return is_data(self.eval_entity_type(one))
 
     def is_object(self, one: str) -> bool:
-        return _entity_type.is_object(self.eval_entity_type(one))
+        return is_object(self.eval_entity_type(one))
 
     def is_acceptable(self, one: str, another: str) -> bool:
-        return _entity_type.is_acceptable(self.eval_entity_type(one), self.eval_entity_type(another))
+        return is_acceptable(self.eval_entity_type(one), self.eval_entity_type(another))

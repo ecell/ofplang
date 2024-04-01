@@ -6,8 +6,8 @@ logger = getLogger(__name__)
 
 import dataclasses, pathlib, io, uuid
 from collections import defaultdict, deque, OrderedDict
-from typing import Any, Callable, ValuesView
-from collections.abc import Iterator, Generator
+from typing import Any, Callable, ValuesView, IO
+from collections.abc import Iterable, Iterator, MutableMapping
 from enum import IntEnum, auto
 
 from .protocol import PortAddress, Port, Protocol, PortConnection, EntityDescription
@@ -28,13 +28,13 @@ class Operation:
         self.__entity = entity
         self.__definition = definition
 
-    def input(self) -> Iterator[tuple[PortAddress, Port]]:
+    def input(self) -> Iterable[tuple[PortAddress, Port]]:
         input = {
             PortAddress(self.__entity.id, port["id"]): Port(**port)
             for port in self.__definition.get("input", [])}
         return input.items()
 
-    def output(self) -> Iterator[tuple[PortAddress, Port]]:
+    def output(self) -> Iterable[tuple[PortAddress, Port]]:
         output = {
             PortAddress(self.__entity.id, port["id"]): Port(**port)
             for port in self.__definition.get("output", [])}
@@ -86,7 +86,7 @@ class Model:
     def connections(self) -> Iterator[PortConnection]:
         return self.__protocol.connections()
 
-    def operations(self) -> Iterator[Operation]:
+    def operations(self) -> Iterable[Operation]:
         return self.__operations.values()
 
     def input(self) -> Iterator[tuple[PortAddress, Port]]:
@@ -126,7 +126,7 @@ class Experiment:
         self.__running_jobs[job_id] = Job(operation, inputs, None, metadata)
         return job_id
 
-    def complete_job(self, job_id: str, outputs: list[Token], metadata: dict | None = None) -> str:
+    def complete_job(self, job_id: str, outputs: list[Token], metadata: dict | None = None) -> None:
         metadata = metadata or {}
         assert job_id in self.__running_jobs, job_id
         job = self.__running_jobs.pop(job_id)
@@ -136,6 +136,7 @@ class Experiment:
     def input(self) -> dict[str, Any]:
         assert len(self.__complete_jobs) > 0
         job = self.__complete_jobs[0]
+        assert job.outputs is not None
         assert job.operation.id == "input"
         return {token.address.port_id: token.value for token in job.outputs}
 
@@ -157,7 +158,7 @@ class ExecutorBase:
     def initialize(self) -> None:
         pass
 
-    def __call__(self, runner: "Runner", jobs: Iterator[tuple[str, EntityDescription, dict]]) -> None:
+    def __call__(self, runner: "Runner", jobs: Iterable[tuple[str, EntityDescription, dict]]) -> None:
         raise NotImplementedError()
 
 class BuiltinExecutor:
@@ -165,7 +166,7 @@ class BuiltinExecutor:
     def __init__(self, jobs: list[tuple[str, Operation, dict]]) -> None:
         self.__jobs = jobs
 
-    def __iter__(self) -> Generator[tuple[str, EntityDescription, dict], None, None]:
+    def __iter__(self) -> Iterator[tuple[str, EntityDescription, dict]]:
         for job_id, operation, inputs in self.__jobs:
             if issubclass(operation.type, BuiltinOperation):
                 assert False, str(operation)
@@ -175,18 +176,18 @@ class Runner:
 
     def __init__(self, protocol: Protocol, definitions: Definitions, executor: ExecutorBase | None = None) -> None:
         self.__model = Model(protocol, definitions)
-        self.__tokens = defaultdict(deque)
+        self.__tokens: MutableMapping[PortAddress, deque[Token]] = defaultdict(deque)
 
         self.__operation_status = {operation.id: StatusEnum.INACTIVE for operation in self.__model.operations()}
         self.__executor = executor
-        self.__experiment: Experiment | None = None
+        self.__experiment: Experiment = Experiment()
 
     @property
-    def executor(self) -> Callable[["Runner", Iterator[tuple[str, EntityDescription, dict]]], None]:
+    def executor(self) -> ExecutorBase | None:
         return self.__executor
 
     @executor.setter
-    def executor(self, func: Callable[["Runner", Iterator[tuple[str, EntityDescription, dict]]], None]) -> None:
+    def executor(self, func: ExecutorBase) -> None:
         self.__executor = func
 
     def activate_all(self) -> None:
@@ -198,7 +199,7 @@ class Runner:
         self.__operation_status[id] = StatusEnum.INACTIVE
 
     def transmit_token(self) -> None:
-        new_tokens = defaultdict(deque)
+        new_tokens: MutableMapping[PortAddress, deque[Token]] = defaultdict(deque)
         for connection in self.__model.connections():
             for token in self.__tokens[connection.input]:
                 new_token = Token(connection.output, token.value)
@@ -219,7 +220,7 @@ class Runner:
                     continue
                 # pop tokens here
                 input_tokens = [
-                    (self.__tokens[address].pop() if self.has_token(address) else Token(address, port.default))
+                    (self.__tokens[address].pop() if self.has_token(address) else Token(address, port.default or {}))  #XXX: port.default can be None
                     for address, port in operation.input()]
                 job_id = self.__experiment.new_job(operation.asentitydesc(), input_tokens)
                 jobs.append((job_id, operation, {token.address.port_id: token.value for token in input_tokens}))
@@ -237,6 +238,7 @@ class Runner:
 
     def run(self, inputs: dict, *, executor: ExecutorBase | None = None) -> Experiment:
         executor = executor or self.__executor
+        assert executor is not None
 
         self.__experiment = Experiment()
         self.clear_tokens()
@@ -247,7 +249,7 @@ class Runner:
                 raise RuntimeError(f"Input [{address.port_id}] is missing.")
 
         input_operation = EntityDescription("input", "IOOperation")
-        self.complete_job(self.__experiment.new_job(input_operation, {}), input_operation, inputs)
+        self.complete_job(self.__experiment.new_job(input_operation, []), input_operation, inputs)
         self.activate_all()
 
         while self.num_tokens() > 0:
@@ -262,7 +264,7 @@ class Runner:
         output_tokens = [self.__tokens[address].pop() for address, _ in self.model.output()]
         output_operation = EntityDescription("output", "IOOperation")
         self.complete_job(self.__experiment.new_job(output_operation, output_tokens), output_operation, {})
-        experiment, self.__experiment = self.__experiment, None
+        experiment, self.__experiment = self.__experiment, Experiment()
         assert len(experiment.running()) == 0, f"Running job(s) remained [{len(experiment.running())}]."
         return experiment
 
@@ -284,9 +286,9 @@ class Runner:
 
 def run(
         inputs: dict,
-        protocol: Protocol | str | pathlib.PurePath | io.IOBase,
-        definitions: Definitions | str | pathlib.PurePath | io.IOBase,
-        executor: Callable[["Runner", list[tuple[EntityDescription, dict]]], None]) -> dict:
+        protocol: Protocol | str | pathlib.Path | IO,
+        definitions: Definitions | str | pathlib.Path | IO,
+        executor: ExecutorBase) -> dict:
     if not isinstance(definitions, Definitions):
         definitions = Definitions(definitions)
     check_definitions(definitions)

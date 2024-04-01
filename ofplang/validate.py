@@ -8,7 +8,6 @@ import itertools
 from collections import defaultdict
 
 from .entity_type import TypeManager, Operation
-from . builtins import BuiltinOperation
 from .definitions import Definitions
 from .protocol import Protocol
 
@@ -17,18 +16,18 @@ def check_protocol(protocol: Protocol, definitions: Definitions | None = None) -
     check_unique_id(protocol)
     check_connection_port_exists(protocol)
 
-    definitions = definitions or Definitions()
-    check_operation_types(protocol, definitions)
-    check_port_types(protocol, definitions)
+    if definitions is not None:
+        check_operation_types(protocol, definitions)
+        check_port_types(protocol, definitions)
 
 def check_unique_id(protocol: Protocol) -> None:
     is_valid = True
     id_list = []
-    for entity in itertools.chain(protocol.input(), protocol.output()):
-        if entity.id not in id_list:
-            id_list.append(entity.id)
+    for port in itertools.chain(protocol.input(), protocol.output()):
+        if port.id not in id_list:
+            id_list.append(port.id)
         else:
-            logger.error(f"Id [{entity.id}] already exists.")
+            logger.error(f"Id [{port.id}] already exists.")
             is_valid = False
 
     id_list = ["input", "output"]
