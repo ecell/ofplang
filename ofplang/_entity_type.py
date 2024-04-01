@@ -11,8 +11,11 @@ class EntityType(type): pass
 
 class Object(EntityType): pass
 class Data(EntityType): pass
+
 class Operation(EntityType): pass  #XXX
 class IOOperation(Operation): pass  #XXX
+class BuiltinOperation(Operation): pass
+class RunScript(BuiltinOperation): pass
 
 class Spread(typing.Generic[typing.TypeVar("T")]): pass
 class Optional(typing.Generic[typing.TypeVar("T")]): pass  # Do not use `T | None`. Use `Optional` instead.

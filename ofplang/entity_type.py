@@ -6,7 +6,7 @@ logger = getLogger(__name__)
 
 from . import definitions
 from . import _entity_type
-from ._entity_type import EntityType, Object, Data, Operation, IOOperation, Spread, Optional, Array
+from ._entity_type import EntityType, Object, Data, Operation, IOOperation, Spread, Optional, Array, BuiltinOperation, RunScript
 
 
 class TypeManager:
@@ -22,9 +22,11 @@ class TypeManager:
             "Data": Data,
             "Operation": Operation,
             "IOOperation": IOOperation,
+            "BuiltinOperation": BuiltinOperation,
+            "RunScript": RunScript,
             "Spread": Spread,
             "Optional": Optional,
-            "Array": Array
+            "Array": Array,
             }
 
         for x in self.__definitions:
@@ -32,8 +34,11 @@ class TypeManager:
             assert name not in self.__primitive_types, name
             self.__primitive_types[name] = type(name, (self.__primitive_types[ref], ), {})
 
+    def has_definition(self, expression: str) -> bool:
+        return (expression in self.__primitive_types)
+
     def eval_primitive_type(self, expression: str) -> type:
-        assert expression in self.__primitive_types, f"Unknown entity type given [{expression}]."
+        assert self.has_definition(expression), f"Unknown entity type given [{expression}]."
         entity_type = self.__primitive_types[expression]
         assert issubclass(entity_type, (EntityType, )), f"[{expression}] is not an entity type."
         return entity_type

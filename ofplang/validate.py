@@ -7,7 +7,8 @@ logger = getLogger(__name__)
 import itertools
 from collections import defaultdict
 
-from .entity_type import TypeManager
+from .entity_type import TypeManager, Operation
+from . builtins import BuiltinOperation
 from .definitions import Definitions
 from .protocol import Protocol
 
@@ -101,6 +102,8 @@ def check_definitions(definitions: Definitions) -> None:
     assert is_valid, "Invalid definitions."
 
 def check_operation_types(protocol: Protocol, definitions: Definitions) -> None:
+    type_manager = TypeManager(definitions)
+
     is_valid = True
     operation_types = {}
     for entity in protocol.operations():
@@ -108,11 +111,15 @@ def check_operation_types(protocol: Protocol, definitions: Definitions) -> None:
             logger.error(f"Unknown operation type [{entity.type}].")
             is_valid = False
             continue
-        definition = definitions.get_by_name(entity.type)
-        if definition.get("ref") != "Operation" and definition['ref'] != "IOOperation":
-            logger.error(f"Wrong operation type [{entity.type}].")
+
+        assert type_manager.has_definition(entity.type)
+        entity_type =  type_manager.eval_primitive_type(entity.type)
+        if not issubclass(entity_type, Operation):
+            logger.error(f"[{entity.type}] is not Operation.")
             is_valid = False
             continue
+
+        definition = definitions.get_by_name(entity.type)
         operation_types[entity.id] = definition
 
     for connection in protocol.connections():
@@ -125,6 +132,7 @@ def check_operation_types(protocol: Protocol, definitions: Definitions) -> None:
                 is_valid = False
         else:
             assert connection.input.operation_id == "input"
+
         if connection.output.operation_id in operation_types:
             for port in operation_types[connection.output.operation_id].get("input", []):
                 if connection.output.port_id == port["id"]:
@@ -138,7 +146,7 @@ def check_operation_types(protocol: Protocol, definitions: Definitions) -> None:
     assert is_valid, "Invalid operation type."
 
 def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
-    type_checker = TypeManager(definitions)
+    type_manager = TypeManager(definitions)
 
     is_valid = True
 
@@ -176,7 +184,7 @@ def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
                 is_valid = False
 
         for port in definition.get("output", ()):
-            if type_checker.is_data(port["type"]):
+            if type_manager.is_data(port["type"]):
                 continue
             cnt = 0
             for connection in protocol.connections():
@@ -220,13 +228,13 @@ def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
                     output_port = port.type
                     break
 
-        if not type_checker.is_acceptable(input_port, output_port):
+        if not type_manager.is_acceptable(input_port, output_port):
             logger.error(f"Type mismatch [{input_port} != {output_port}] in [{connection}]")
             is_valid = False
 
-        if type_checker.is_object(input_port):
+        if type_manager.is_object(input_port):
             connection_counts[connection.input].append(connection)
-        if type_checker.is_object(output_port):
+        if type_manager.is_object(output_port):
             connection_counts[connection.output].append(connection)
 
     for address, connections in connection_counts.items():

@@ -6,12 +6,13 @@ logger = getLogger(__name__)
 
 import dataclasses, pathlib, io, uuid
 from collections import defaultdict, deque, OrderedDict
-from typing import Any, Iterator, Callable, ValuesView
+from typing import Any, Callable, ValuesView
+from collections.abc import Iterator, Generator
 from enum import IntEnum, auto
 
 from .protocol import PortAddress, Port, Protocol, PortConnection, EntityDescription
 from .definitions import Definitions
-from .entity_type import TypeManager, IOOperation
+from .entity_type import TypeManager, IOOperation, BuiltinOperation
 from . import entity_type
 from .validate import check_definitions, check_protocol
 
@@ -79,7 +80,7 @@ class Model:
                         port["default"] = input_defaults[port["id"]]
             self.__operations[operation.id] = Operation(Entity(operation.id, operation_type), definition)
 
-    def get_by_id(self, id):
+    def get_by_id(self, id) -> Operation:
         return self.__operations[id]
 
     def connections(self) -> Iterator[PortConnection]:
@@ -156,8 +157,19 @@ class ExecutorBase:
     def initialize(self) -> None:
         pass
 
-    def __call__(self, runner: "Runner", jobs: list[tuple[str, EntityDescription, dict]]) -> None:
+    def __call__(self, runner: "Runner", jobs: Iterator[tuple[str, EntityDescription, dict]]) -> None:
         raise NotImplementedError()
+
+class BuiltinExecutor:
+
+    def __init__(self, jobs: list[tuple[str, Operation, dict]]) -> None:
+        self.__jobs = jobs
+
+    def __iter__(self) -> Generator[tuple[str, EntityDescription, dict], None, None]:
+        for job_id, operation, inputs in self.__jobs:
+            if issubclass(operation.type, BuiltinOperation):
+                assert False, str(operation)
+            yield (job_id, operation.asentitydesc(), inputs)
 
 class Runner:
 
@@ -170,11 +182,11 @@ class Runner:
         self.__experiment: Experiment | None = None
 
     @property
-    def executor(self) -> Callable[["Runner", list[tuple[str, EntityDescription, dict]]], None]:
+    def executor(self) -> Callable[["Runner", Iterator[tuple[str, EntityDescription, dict]]], None]:
         return self.__executor
 
     @executor.setter
-    def executor(self, func: Callable[["Runner", list[tuple[str, EntityDescription, dict]]], None]) -> None:
+    def executor(self, func: Callable[["Runner", Iterator[tuple[str, EntityDescription, dict]]], None]) -> None:
         self.__executor = func
 
     def activate_all(self) -> None:
@@ -197,7 +209,7 @@ class Runner:
         for address in new_tokens:
             self.__tokens[address].extend(new_tokens[address])
 
-    def list_jobs(self, max_iterations=1) -> list[tuple[str, EntityDescription, dict[str, Any]]]:
+    def list_jobs(self, max_iterations=1) -> list[tuple[str, Operation, dict[str, Any]]]:
         jobs = []
         for operation in self.__model.operations():
             for _ in range(max_iterations):
@@ -210,7 +222,7 @@ class Runner:
                     (self.__tokens[address].pop() if self.has_token(address) else Token(address, port.default))
                     for address, port in operation.input()]
                 job_id = self.__experiment.new_job(operation.asentitydesc(), input_tokens)
-                jobs.append((job_id, operation.asentitydesc(), {token.address.port_id: token.value for token in input_tokens}))
+                jobs.append((job_id, operation, {token.address.port_id: token.value for token in input_tokens}))
 
                 # IOOperation fires only once.
                 if issubclass(operation.type, IOOperation):
@@ -241,7 +253,7 @@ class Runner:
         while self.num_tokens() > 0:
             self.transmit_token()
             jobs = self.list_jobs()
-            executor(self, jobs)
+            executor(self, BuiltinExecutor(jobs))
             if all(self.has_token(address) for address, _ in self.model.output()):
                 break
         else:
