@@ -7,15 +7,12 @@ logger = getLogger(__name__)
 import uuid, itertools
 from dataclasses import dataclass, field
 from collections import defaultdict
-from collections.abc import Iterable, MutableMapping
+from collections.abc import Iterable
 import numpy
-from numpy.typing import ArrayLike
 
-from .runner import Runner, ExecutorBase, Experiment
+from .runner import Runner, ExecutorBase, Experiment, OperationNotSupportedError
 from .protocol import EntityDescription
 
-class OperationNotSupportedError(RuntimeError):
-    pass
 
 @dataclass
 class Plate96:

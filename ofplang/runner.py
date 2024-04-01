@@ -4,15 +4,15 @@ from logging import getLogger
 
 logger = getLogger(__name__)
 
-import dataclasses, pathlib, io, uuid
+import dataclasses, pathlib, uuid
 from collections import defaultdict, deque, OrderedDict
-from typing import Any, Callable, ValuesView, IO
+from typing import Any, ValuesView, IO
 from collections.abc import Iterable, Iterator, MutableMapping
 from enum import IntEnum, auto
 
 from .protocol import PortAddress, Port, Protocol, PortConnection, EntityDescription
 from .definitions import Definitions
-from .entity_type import TypeManager, IOOperation, BuiltinOperation
+from .entity_type import TypeManager, IOOperation, BuiltinOperation, RunScript
 from . import entity_type
 from .validate import check_definitions, check_protocol
 
@@ -153,6 +153,9 @@ class Experiment:
     def running(self) -> ValuesView[Job]:
         return self.__running_jobs.values()
 
+class OperationNotSupportedError(RuntimeError):
+    pass
+
 class ExecutorBase:
 
     def initialize(self) -> None:
@@ -161,16 +164,30 @@ class ExecutorBase:
     def __call__(self, runner: "Runner", jobs: Iterable[tuple[str, EntityDescription, dict]]) -> None:
         raise NotImplementedError()
 
-class BuiltinExecutor:
+class _Preprocessor:
 
-    def __init__(self, jobs: list[tuple[str, Operation, dict]]) -> None:
+    def __init__(self, runner: "Runner", jobs: list[tuple[str, Operation, dict]]) -> None:
+        self.__runner = runner
         self.__jobs = jobs
 
     def __iter__(self) -> Iterator[tuple[str, EntityDescription, dict]]:
         for job_id, operation, inputs in self.__jobs:
             if issubclass(operation.type, BuiltinOperation):
-                assert False, str(operation)
-            yield (job_id, operation.asentitydesc(), inputs)
+                outputs = self.execute(job_id, operation, inputs)
+                self.__runner.complete_job(job_id, operation.asentitydesc(), outputs)
+            else:
+                yield (job_id, operation.asentitydesc(), inputs)
+
+    def execute(self, job_id: str, operation: Operation, inputs: dict) -> dict:
+        outputs: dict = {}
+        if issubclass(operation.type, RunScript):
+            script = inputs["script"]["value"]
+            localdict = {key: value["value"] for key, value in inputs.items() if key != "script"}
+            exec(script, {}, localdict)  #XXX: Not safe
+            outputs = {port.id: {"value": localdict[port.id], "type": port.type} for _, port in operation.output()}
+        else:
+            raise OperationNotSupportedError(f"Undefined operation given [{operation.id}, {operation.type}].")
+        return outputs
 
 class Runner:
 
@@ -255,7 +272,7 @@ class Runner:
         while self.num_tokens() > 0:
             self.transmit_token()
             jobs = self.list_jobs()
-            executor(self, BuiltinExecutor(jobs))
+            executor(self, _Preprocessor(self, jobs))
             if all(self.has_token(address) for address, _ in self.model.output()):
                 break
         else:
