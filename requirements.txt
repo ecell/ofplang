@@ -1,0 +1,6 @@
+numpy
+scipy
+pyyaml
+scikit-learn
+modAL
+#graphviz
