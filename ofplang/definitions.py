@@ -12,37 +12,45 @@ from typing import IO
 
 class Definitions:
 
-    def __init__(self, file: str | pathlib.Path | IO | None) -> None:
+    def __init__(self, file: str | pathlib.Path | IO | None = None, key: str | None = None) -> None:
+        self.__data = []
         if file is not None:
-            self.load(file)
+            self.load(file, key)
 
-    def load(self, file: str | pathlib.Path | IO) -> None:
+    def load(self, file: str | pathlib.Path | IO, key: str | None) -> None:
         if isinstance(file, str):
             with pathlib.Path(file).open() as f:
-                self.__load(f)
+                self.__load(f, key)
         elif isinstance(file, pathlib.Path):
             with file.open() as f:
-                self.__load(f)
+                self.__load(f, key)
         elif isinstance(file, IO):
-            self.__load(file)
+            self.__load(file, key)
         else:
             raise TypeError(f"Invalid type [{type(file)}]")
 
-    def __load(self, file: IO) -> None:
-        self.__data = yaml.load(file, Loader=yaml.Loader)
+    def __load(self, file: IO, key: str | None) -> None:
+        data = yaml.load(file, Loader=yaml.Loader)
+        if key is not None:
+            assert key in data
+            data = data[key]
+        self.__data.append(data)
 
     def get_by_name(self, name: str) -> dict:
-        for x in self.__data:
-            if x["name"] == name:
-                return deepcopy(x)
+        for data in reversed(self.__data):
+            for x in data:
+                if x["name"] == name:
+                    return deepcopy(x)
         raise ValueError(f"Unknown name [{name}]")
 
     def has(self, name: str) -> bool:
-        for x in self.__data:
-            if x["name"] == name:
-                return True
+        for data in reversed(self.__data):
+            for x in data:
+                if x["name"] == name:
+                    return True
         return False
 
     def __iter__(self):
-        for x in self.__data:
-            yield deepcopy(x)
+        for data in reversed(self.__data):
+            for x in data:
+                yield deepcopy(x)

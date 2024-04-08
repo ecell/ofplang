@@ -188,7 +188,7 @@ class _Preprocessor:
                 assert port.id in localdict, f"No output for [{port.id}]"
             outputs = {port.id: {"value": localdict[port.id], "type": port.type} for _, port in operation.output()}
         else:
-            raise OperationNotSupportedError(f"Undefined operation given [{operation.id}, {operation.type}].")
+            raise OperationNotSupportedError(f"Undefined operation given [{operation.asentitydesc().id}, {operation.asentitydesc().type}].")
         return outputs
 
 class Runner:
