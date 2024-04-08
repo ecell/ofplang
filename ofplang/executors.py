@@ -27,6 +27,7 @@ class SimulatorBase(ExecutorBase):
     def initialize(self) -> None:
         # global state
         self.__plates: dict[str, Plate96] = {}
+        self.__liquids: defaultdict[int, float] = defaultdict(float)  # stock
 
     def new_plate(self, plate_id: str | None = None) -> str:
         plate_id = plate_id or str(uuid.uuid4())
@@ -55,6 +56,7 @@ class SimulatorBase(ExecutorBase):
             channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
             plate_id = inputs["in1"]["value"]["id"]
             self.get_plate(plate_id).contents[channel] += volume
+            self.__liquids[channel] += sum(volume)
             outputs["out1"] = inputs["in1"]
         else:
             raise OperationNotSupportedError(f"Undefined operation given [{operation.id}, {operation.type}].")
