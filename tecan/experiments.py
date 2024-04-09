@@ -85,7 +85,7 @@ def loadasc(ascfile, delim="\t"):
 def read_absorbance_3colors():
     call_method(fluent, "ReadAbsorbance")
 
-    ascpath = pathlib.Path(r"C:\Users\Public\Documents\kaizu\Magellan Pro\asc")
+    ascpath = pathlib.Path(r"C:\Users\Public\Documents\Tecan\Magellan Pro\asc")
     ascfiles = ascpath.glob("ThreeColorsAbsorbance*.asc")
     ascfile = max(ascfiles, key=lambda x: x.stat().st_ctime)
 
