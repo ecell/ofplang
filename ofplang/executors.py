@@ -77,7 +77,8 @@ class TecanFluentController(SimulatorBase):
             outputs = super().execute(operation, inputs, outputs_training)
 
             channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
-            params = {'data': volume, 'channel': channel, 'droptip': 1}
+            volume = volume.astype(int)
+            params = {'data': volume, 'channel': channel}
             _ = tecan.dispense_liquid_96wells(**params)
         elif operation.type == "ReadAbsorbance3Colors":
             params = {}
