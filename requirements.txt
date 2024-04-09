@@ -5,4 +5,4 @@ scikit-learn
 modAL
 #graphviz
 sila2
-git+https://gitlab.com/tecan/fluent-sila2-connector.git#egg=tecan&subdirectory=Python
+#-e git+https://gitlab.com/tecan/fluent-sila2-connector.git#egg=tecan&subdirectory=Python
