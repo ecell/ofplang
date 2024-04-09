@@ -62,6 +62,32 @@ class SimulatorBase(ExecutorBase):
             raise OperationNotSupportedError(f"Undefined operation given [{operation.id}, {operation.type}].")
         return outputs
 
+class TecanFluentController(SimulatorBase):
+
+    def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+        assert outputs_training is None, "'teach' is not supported."
+        from . import tecan
+
+        outputs = {}
+        if operation.type == "ServePlate96":
+            outputs = super().execute(operation, inputs, outputs_training)
+        elif operation.type == "StoreLabware":
+            outputs = super().execute(operation, inputs, outputs_training)
+        elif operation.type == "DispenseLiquid96Wells":
+            outputs = super().execute(operation, inputs, outputs_training)
+
+            channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
+            params = {'data': volume, 'channel': channel, 'droptip': 1}
+            _ = tecan.dispense_liquid_96wells(**params)
+        elif operation.type == "ReadAbsorbance3Colors":
+            params = {}
+            (data, ), _ = tecan.read_absorbance_3colors(**params)
+            outputs["value"] = {"value": data, "type": "Spread[Array[Float]]"}
+            outputs["out1"] = inputs["in1"]
+        else:
+            raise OperationNotSupportedError(f"Undefined operation given [{operation.id}, {operation.type}].")
+        return outputs
+
 class Simulator(SimulatorBase):
 
     def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
@@ -75,9 +101,15 @@ class Simulator(SimulatorBase):
                 plate_id = inputs["in1"]["value"]["id"]
                 start = numpy.zeros(96, dtype=float)  # self.get_plate(plate_id).contents.default_factory()
                 contents = sum(self.get_plate(plate_id).contents.values(), start)
-                value: numpy.ndarray = contents ** 3 / (contents ** 3 + 100.0 ** 3)  # Sigmoid
-                value += numpy.random.normal(scale=0.05, size=value.shape)
-                outputs["value"] = {"value": [value], "type": "Spread[Array[Float]]"}
+
+                value1: numpy.ndarray = contents ** 3 / (contents ** 3 + 100.0 ** 3)  # Sigmoid
+                value1 += numpy.random.normal(scale=0.05, size=value1.shape)
+                value2: numpy.ndarray = 100 * contents / (contents + 180.0) + 50  # Sigmoid
+                value2 += numpy.random.normal(scale=5, size=value2.shape)
+                value3: numpy.ndarray = 30 * (numpy.sin(contents / 50.0 * numpy.pi) + 1.0) + 15  # Sin
+                value3 += numpy.random.normal(scale=3, size=value3.shape)
+
+                outputs["value"] = {"value": [value1, value2, value3], "type": "Spread[Array[Float]]"}
                 outputs["out1"] = inputs["in1"]
             else:
                 raise err
@@ -92,7 +124,7 @@ class GaussianProcessExecutor(SimulatorBase):
         from sklearn.gaussian_process.kernels import ConstantKernel, WhiteKernel, RBF  # type: ignore
         from modAL.models import ActiveLearner  # type: ignore
 
-        kernel = ConstantKernel() * RBF() + WhiteKernel()
+        kernel = ConstantKernel() * RBF() + ConstantKernel() + WhiteKernel()
         self.__learner = ActiveLearner(
             estimator=GaussianProcessRegressor(kernel=kernel, alpha=0, random_state=0))
 
@@ -115,12 +147,14 @@ class GaussianProcessExecutor(SimulatorBase):
                 contents = sum(self.get_plate(plate_id).contents.values(), start)
                 if outputs_training is not None:
                     # train here
-                    self.__teach(contents, outputs_training["value"]["value"][0])
+                    y_training = numpy.array(outputs_training["value"]["value"]).T
+                    self.__teach(contents, y_training)
                 (value, std) = self.__predict(contents)
-                outputs["value"] = {"value": [value], "type": "Spread[Array[Float]]"}
+                print(f"value.shape = {value.shape}")
+                outputs["value"] = {"value": [value.T[0], value.T[1], value.T[2]], "type": "Spread[Array[Float]]"}
                 outputs["out1"] = inputs["in1"]
 
-                self.__uncertainty = max(self.__uncertainty, std.max())
+                self.__uncertainty = max(self.__uncertainty, std.ravel().max())
             else:
                 raise err
         return outputs
@@ -130,7 +164,7 @@ class GaussianProcessExecutor(SimulatorBase):
 
     def __predict(self, contents: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray]:
         pred_mu, pred_sigma = self.__learner.predict(contents.reshape(-1, 1), return_std=True)
-        pred_mu, pred_sigma = pred_mu.ravel(), pred_sigma.ravel()
+        # pred_mu, pred_sigma = pred_mu.ravel(), pred_sigma.ravel()
         return pred_mu, pred_sigma
 
     def teach(self, experiment: Experiment) -> None:
