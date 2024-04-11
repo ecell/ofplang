@@ -13,7 +13,7 @@ from typing import IO
 class Definitions:
 
     def __init__(self, file: str | pathlib.Path | IO | None = None, key: str | None = None) -> None:
-        self.__data = []
+        self.__data: list = []
         if file is not None:
             self.load(file, key)
 

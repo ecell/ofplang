@@ -149,7 +149,7 @@ def measure_volume_96wells():
     data, (header, ) = loadattr(attrfile)
     return (data, ), {'header': header, 'filename': str(attrfile)}
 
-from tecan import Fluent
+from tecan import Fluent  # type: ignore
 
 # fluent = Fluent("127.0.0.1", 50052)
 fluent = Fluent.discover(10)

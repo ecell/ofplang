@@ -129,8 +129,9 @@ class GaussianProcessExecutor(SimulatorBase):
         # self.__learner = ActiveLearner(
         #     estimator=GaussianProcessRegressor(kernel=kernel, alpha=0, random_state=0))
         self.__estimator = GaussianProcessRegressor(kernel=kernel, alpha=0, random_state=0)
-        self.__X_training = None
-        self.__y_training = None
+        self.__X_training: numpy.ndarray | None = None
+        self.__y_training: numpy.ndarray | None = None
+        self.__feature_indices: dict[int, int] = {}
 
     def initialize(self) -> None:
         super().initialize()
@@ -140,6 +141,14 @@ class GaussianProcessExecutor(SimulatorBase):
     def uncertainty(self):
         return self.__uncertainty
 
+    def __add_feature(self, channel: int) -> int:
+        assert channel not in self.__feature_indices
+        value = len(self.__feature_indices)
+        self.__feature_indices[channel] = value
+        if self.__X_training is not None:
+            self.__X_training = numpy.hstack((self.__X_training, numpy.zeros(self.__X_training.shape[0], dtype=float).reshape(-1, 1)))
+        return value
+
     def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         try:
             outputs = super().execute(operation, inputs, outputs_training)
@@ -147,13 +156,22 @@ class GaussianProcessExecutor(SimulatorBase):
             outputs = {}
             if operation.type == "ReadAbsorbance3Colors":
                 plate_id = inputs["in1"]["value"]["id"]
-                start = numpy.zeros(96, dtype=float)  # self.get_plate(plate_id).contents.default_factory()
-                contents = sum(self.get_plate(plate_id).contents.values(), start)
+                plate = self.get_plate(plate_id)
+
+                for channel in plate.contents.keys():
+                    if channel not in self.__feature_indices:
+                        self.__add_feature(channel)
+
+                contents = numpy.zeros((96, len(self.__feature_indices)), dtype=float)
+                for channel, value in plate.contents.items():
+                    contents.T[self.__feature_indices[channel]] = numpy.array(value)
+
                 if outputs_training is not None:
                     # train here
                     y_training = numpy.array(outputs_training["value"]["value"]).T
                     self.__teach(contents, y_training)
                 (value, std) = self.__predict(contents)
+
                 print(f"value.shape = {value.shape}")
                 outputs["value"] = {"value": [value.T[0], value.T[1], value.T[2]], "type": "Spread[Array[Float]]"}
                 outputs["out1"] = inputs["in1"]
@@ -163,22 +181,22 @@ class GaussianProcessExecutor(SimulatorBase):
                 raise err
         return outputs
 
-    def __teach(self, x_training: numpy.ndarray, y_training: numpy.ndarray) -> None:
+    def __teach(self, X_training: numpy.ndarray, y_training: numpy.ndarray) -> None:
         # self.__learner.teach(x_training.reshape(-1, 1), y_training)
-
         # _add_training_data
         if self.__X_training is None:
-            self.__X_training = x_training.reshape(-1, 1)
+            self.__X_training = X_training
             self.__y_training = y_training
         else:
-            self.__X_training = numpy.concatenate((self.__X_training, x_training.reshape(-1, 1)))
+            assert self.__y_training is not None
+            self.__X_training = numpy.concatenate((self.__X_training, X_training))
             self.__y_training = numpy.concatenate((self.__y_training, y_training))
         # _fit_to_known
         self.__estimator.fit(self.__X_training, self.__y_training)
 
     def __predict(self, contents: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray]:
         # pred_mu, pred_sigma = self.__learner.predict(contents.reshape(-1, 1), return_std=True)
-        pred_mu, pred_sigma = self.__estimator.predict(contents.reshape(-1, 1), return_std=True)
+        pred_mu, pred_sigma = self.__estimator.predict(contents, return_std=True)
         # pred_mu, pred_sigma = pred_mu.ravel(), pred_sigma.ravel()
         return pred_mu, pred_sigma
 
