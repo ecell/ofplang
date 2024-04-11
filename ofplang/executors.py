@@ -120,7 +120,9 @@ class GaussianProcessExecutor(SimulatorBase):
 
     def __init__(self) -> None:
         super().__init__()
+        self.clear()
 
+    def clear(self) -> None:
         from sklearn.gaussian_process import GaussianProcessRegressor  # type: ignore
         from sklearn.gaussian_process.kernels import ConstantKernel, WhiteKernel, RBF  # type: ignore
         # from modAL.models import ActiveLearner  # type: ignore
@@ -132,6 +134,10 @@ class GaussianProcessExecutor(SimulatorBase):
         self.__X_training: numpy.ndarray | None = None
         self.__y_training: numpy.ndarray | None = None
         self.__feature_indices: dict[int, int] = {}
+
+    @property
+    def tarining_data(self) -> tuple[numpy.ndarray, numpy.ndarray]:
+        return (self.__X_training.copy(), self.__y_training.copy())
 
     def initialize(self) -> None:
         super().initialize()
@@ -195,6 +201,9 @@ class GaussianProcessExecutor(SimulatorBase):
         self.__estimator.fit(self.__X_training, self.__y_training)
 
     def __predict(self, contents: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray]:
+        if self.__X_training is None:
+            raise RuntimeError(f"No training yet.")
+
         # pred_mu, pred_sigma = self.__learner.predict(contents.reshape(-1, 1), return_std=True)
         pred_mu, pred_sigma = self.__estimator.predict(contents, return_std=True)
         # pred_mu, pred_sigma = pred_mu.ravel(), pred_sigma.ravel()
