@@ -138,7 +138,7 @@ class GaussianProcessExecutor(SimulatorBase):
         self.__uncertainty = 0.0
 
     @property
-    def uncertainty(self):
+    def uncertainty(self) -> float:
         return self.__uncertainty
 
     def __add_feature(self, channel: int) -> int:
@@ -183,7 +183,7 @@ class GaussianProcessExecutor(SimulatorBase):
 
     def __teach(self, X_training: numpy.ndarray, y_training: numpy.ndarray) -> None:
         # self.__learner.teach(x_training.reshape(-1, 1), y_training)
-        # _add_training_data
+        # ActiveLearner._add_training_data
         if self.__X_training is None:
             self.__X_training = X_training
             self.__y_training = y_training
@@ -191,7 +191,7 @@ class GaussianProcessExecutor(SimulatorBase):
             assert self.__y_training is not None
             self.__X_training = numpy.concatenate((self.__X_training, X_training))
             self.__y_training = numpy.concatenate((self.__y_training, y_training))
-        # _fit_to_known
+        # ActiveLearner._fit_to_known
         self.__estimator.fit(self.__X_training, self.__y_training)
 
     def __predict(self, contents: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray]:
