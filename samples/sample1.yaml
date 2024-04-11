@@ -1,6 +1,11 @@
 input:
   - id: volume
     type: Array[Float]
+  - id: channel
+    type: Integer
+    default:
+      value: 0
+      type: Integer
 output:
   - id: data
     type: Spread[Array[Float]]
@@ -9,10 +14,10 @@ operations:
     type: ServePlate96
   - id: dispense_liquid1
     type: DispenseLiquid96Wells
-    input:
-      - id: channel
-        type: Integer
-        value: 0
+    # input:
+    #   - id: channel
+    #     type: Integer
+    #     value: 0
   - id: read_absorbance1
     type: ReadAbsorbance3Colors
   - id: store_labware1
@@ -24,6 +29,12 @@ connections:
     output:
       - dispense_liquid1
       - volume
+  - input:
+      - input
+      - channel
+    output:
+      - dispense_liquid1
+      - channel
   - input:
       - serve_plate1
       - value

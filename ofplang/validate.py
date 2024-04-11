@@ -14,11 +14,29 @@ from .protocol import Protocol
 
 def check_protocol(protocol: Protocol, definitions: Definitions | None = None) -> None:
     check_unique_id(protocol)
+    check_default(protocol)
     check_connection_port_exists(protocol)
 
     if definitions is not None:
         check_operation_types(protocol, definitions)
         check_port_types(protocol, definitions)
+
+def check_default(protocol: Protocol) -> None:
+    is_valid = True
+    for port in protocol.input():
+        if port.default is None:
+            continue
+        elif not isinstance(port.default, dict):
+            logger.error(f"Port default must be given as a dict [{port}].")
+            is_valid = False
+        else:
+            if "type" not in port.default:
+                logger.error(f"'type' for default not defined [{port}].")
+                is_valid = False
+            if "value" not in port.default:
+                logger.error(f"'value' for default not defined [{port}].")
+                is_valid = False
+    assert is_valid, "Wrong default setting."
 
 def check_unique_id(protocol: Protocol) -> None:
     is_valid = True
