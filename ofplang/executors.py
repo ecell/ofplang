@@ -123,11 +123,14 @@ class GaussianProcessExecutor(SimulatorBase):
 
         from sklearn.gaussian_process import GaussianProcessRegressor  # type: ignore
         from sklearn.gaussian_process.kernels import ConstantKernel, WhiteKernel, RBF  # type: ignore
-        from modAL.models import ActiveLearner  # type: ignore
+        # from modAL.models import ActiveLearner  # type: ignore
 
         kernel = ConstantKernel() * RBF() + ConstantKernel() + WhiteKernel()
-        self.__learner = ActiveLearner(
-            estimator=GaussianProcessRegressor(kernel=kernel, alpha=0, random_state=0))
+        # self.__learner = ActiveLearner(
+        #     estimator=GaussianProcessRegressor(kernel=kernel, alpha=0, random_state=0))
+        self.__estimator = GaussianProcessRegressor(kernel=kernel, alpha=0, random_state=0)
+        self.__X_training = None
+        self.__y_training = None
 
     def initialize(self) -> None:
         super().initialize()
@@ -161,10 +164,21 @@ class GaussianProcessExecutor(SimulatorBase):
         return outputs
 
     def __teach(self, x_training: numpy.ndarray, y_training: numpy.ndarray) -> None:
-        self.__learner.teach(x_training.reshape(-1, 1), y_training)
+        # self.__learner.teach(x_training.reshape(-1, 1), y_training)
+
+        # _add_training_data
+        if self.__X_training is None:
+            self.__X_training = x_training.reshape(-1, 1)
+            self.__y_training = y_training
+        else:
+            self.__X_training = numpy.concatenate((self.__X_training, x_training.reshape(-1, 1)))
+            self.__y_training = numpy.concatenate((self.__y_training, y_training))
+        # _fit_to_known
+        self.__estimator.fit(self.__X_training, self.__y_training)
 
     def __predict(self, contents: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray]:
-        pred_mu, pred_sigma = self.__learner.predict(contents.reshape(-1, 1), return_std=True)
+        # pred_mu, pred_sigma = self.__learner.predict(contents.reshape(-1, 1), return_std=True)
+        pred_mu, pred_sigma = self.__estimator.predict(contents.reshape(-1, 1), return_std=True)
         # pred_mu, pred_sigma = pred_mu.ravel(), pred_sigma.ravel()
         return pred_mu, pred_sigma
 

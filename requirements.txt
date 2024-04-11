@@ -2,7 +2,7 @@ numpy
 scipy
 pyyaml
 scikit-learn
-modAL
+#modAL
 #graphviz
 sila2
 #-e git+https://gitlab.com/tecan/fluent-sila2-connector.git#egg=tecan&subdirectory=Python
