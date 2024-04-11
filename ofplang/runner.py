@@ -263,12 +263,16 @@ class Runner:
         self.clear_tokens()
         executor.initialize()
 
-        for address, _ in self.__model.input():
+        input_outputs = inputs.copy()
+        for address, port in self.__model.input():
             if address.port_id not in inputs:
-                raise RuntimeError(f"Input [{address.port_id}] is missing.")
+                if port.default is None:
+                    raise RuntimeError(f"Input [{address.port_id}] is missing.")
+                else:
+                    input_outputs[address.port_id] = port.default.copy()
 
         input_operation = EntityDescription("input", "IOOperation")
-        self.complete_job(self.__experiment.new_job(input_operation, []), input_operation, inputs)
+        self.complete_job(self.__experiment.new_job(input_operation, []), input_operation, input_outputs)
         self.activate_all()
 
         while self.num_tokens() > 0:
