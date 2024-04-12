@@ -96,7 +96,7 @@ class Protocol:
             g.node(operation.id)
 
         for connection in self.connections():
-            attributes = {"headlabel": connection.input.port_id, "taillabel": connection.output.port_id}
+            attributes = {"headlabel": connection.output.port_id, "taillabel": connection.input.port_id}
             g.edge(
                 connection.input.operation_id, connection.output.operation_id,
                 _attributes=attributes)
