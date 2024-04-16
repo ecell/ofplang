@@ -153,13 +153,31 @@ class Simulator(SimulatorBase):
                 plate_id = inputs["in1"]["value"]["id"]
                 # start = numpy.zeros(96, dtype=float)  # self.get_plate(plate_id).contents.default_factory()
                 # contents = sum(self.get_plate(plate_id).contents.values(), start)
-                contents = self.get_plate(plate_id).contents[1]
+                # contents = self.get_plate(plate_id).contents[2]
+                contents = self.get_plate(plate_id).contents
 
-                value1: numpy.ndarray = contents ** 3 / (contents ** 3 + 100.0 ** 3)  # Sigmoid
+                x = numpy.zeros(96, dtype=float)
+                if 1 in contents:
+                    x += contents[1] * 1.0
+                if 2 in contents:
+                    x += contents[2] * 1.0
+                value1: numpy.ndarray = x ** 3 / (x ** 3 + 100.0 ** 3)  # Sigmoid
                 value1 += numpy.random.normal(scale=0.05, size=value1.shape)
-                value2: numpy.ndarray = 100 * contents / (contents + 180.0) + 50  # Sigmoid
+
+                x = numpy.zeros(96, dtype=float)
+                if 1 in contents:
+                    x += contents[1] * 0.2
+                if 2 in contents:
+                    x += contents[2] * 1.8
+                value2: numpy.ndarray = 100 * x / (x + 180.0) + 50  # Sigmoid
                 value2 += numpy.random.normal(scale=5, size=value2.shape)
-                value3: numpy.ndarray = 30 * (numpy.sin(contents / 50.0 * numpy.pi) + 1.0) + 15  # Sin
+
+                x = numpy.zeros(96, dtype=float)
+                if 1 in contents:
+                    x += contents[1] * 1.8
+                if 2 in contents:
+                    x += contents[2] * 0.2
+                value3: numpy.ndarray = 30 * (numpy.sin(x / 50.0 * numpy.pi) + 1.0) + 15  # Sin
                 value3 += numpy.random.normal(scale=3, size=value3.shape)
 
                 if inputs["in1"]["type"] == "Plate96":
