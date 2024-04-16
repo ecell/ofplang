@@ -34,7 +34,7 @@ protocol.graph("graph.png")
 # runner = Runner(protocol, definitions, executor=TecanFluentController())
 runner = Runner(protocol, definitions, executor=Simulator())
 
-N, M = 24, 16
+N, M = 48, 16
 inputs = {"volume1": {"value": numpy.random.uniform(0, 75, N), "type": "Array[Float]"}, "volume2": {"value": numpy.random.uniform(0, 75, N), "type": "Array[Float]"}, "indices": {"value": numpy.arange(N), "type": "Array[Integer]"}}
 experiment0 = runner.run(inputs=inputs)
 for job in experiment0.jobs():
@@ -77,23 +77,17 @@ for idx in range(3):
 plt.tight_layout()
 plt.savefig(f'comparison.png')
 
-# fig = plt.figure(dpi=300)
-# for idx in range(3):
-#     ax = fig.add_subplot(2, 2, idx + 1)
-#     x = experiment0.input["volume"]["value"]
-#     y = experiment0.output["data"]["value"][idx]
-#     ax.plot(x, y, 'k.')
-#     x = experiment1.input["volume"]["value"]
-#     y = experiment1.output["data"]["value"][idx]
-#     ax.plot(x, y, 'k.')
-#     x = experiment2.input["volume"]["value"]
-#     y = experiment2.output["data"]["value"][idx]
-#     ax.plot(x, y, 'r.')
-#     x = experiment3.input["volume"]["value"]
-#     y = experiment3.output["data"]["value"][idx]
-#     ax.plot(x, y, 'r--', alpha=0.3)
-#     ax.set_xlim(0, 150)
-#     ax.set_xlabel('Input')
-#     ax.set_ylabel('Output')
-# plt.tight_layout()
-# plt.savefig(f'result.png')
+_, ax = plt.subplots(dpi=300)
+x = experiment0.input["volume1"]["value"]
+y = experiment0.input["volume2"]["value"]
+ax.plot(x, y, 'k.')
+x = experiment1.input["volume1"]["value"]
+y = experiment1.input["volume2"]["value"]
+ax.plot(x, y, 'rx')
+ax.set_xlim(0, 75)
+ax.set_ylim(0, 75)
+ax.set_xlabel('volume1')
+ax.set_ylabel('volume1')
+ax.set_aspect('equal', 'box')
+plt.tight_layout()
+plt.savefig('result.png')
