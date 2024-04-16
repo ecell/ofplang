@@ -120,7 +120,7 @@ class TecanFluentController(SimulatorBase):
             outputs["value"] = {"value": data, "type": "Spread[Array[Float]]"}
             outputs["out1"] = inputs["in1"]
         else:
-            raise OperationNotSupportedError(f"Undefined operation given [{operation.id}, {operation.type}].")
+            outputs = super().execute(model, operation, inputs, outputs_training)
         return outputs
 
 class Simulator(SimulatorBase):
@@ -136,7 +136,7 @@ class Simulator(SimulatorBase):
                 plate_id = inputs["in1"]["value"]["id"]
                 # start = numpy.zeros(96, dtype=float)  # self.get_plate(plate_id).contents.default_factory()
                 # contents = sum(self.get_plate(plate_id).contents.values(), start)
-                contents = self.get_plate(plate_id).contents[0]
+                contents = self.get_plate(plate_id).contents[1]
 
                 value1: numpy.ndarray = contents ** 3 / (contents ** 3 + 100.0 ** 3)  # Sigmoid
                 value1 += numpy.random.normal(scale=0.05, size=value1.shape)

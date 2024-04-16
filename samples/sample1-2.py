@@ -19,7 +19,7 @@ from ofplang.definitions import Definitions
 from ofplang.protocol import Protocol
 from ofplang.validate import check_definitions, check_protocol
 from ofplang.runner import Runner
-from ofplang.executors import Simulator, GaussianProcessExecutor
+from ofplang.executors import Simulator, TecanFluentController, GaussianProcessExecutor
 
 
 definitions = Definitions('./manipulate.yaml')
@@ -29,30 +29,35 @@ check_definitions(definitions)
 protocol = Protocol("./sample2.yaml")
 check_protocol(protocol, definitions)
 # protocol.dump()
-protocol.graph("graph.png")
+# protocol.graph("graph.png")
 
-runner = Runner(protocol, definitions, executor=Simulator())
+runner = Runner(protocol, definitions, executor=TecanFluentController())
+# runner = Runner(protocol, definitions, executor=Simulator())
 
-inputs = {"volume": {"value": numpy.random.uniform(0, 100, 16), "type": "Array[Float]"}, "indices": {"value": numpy.arange(16), "type": "Array[Integer]"}}
-experiment = runner.run(inputs=inputs)
-for job in experiment.jobs():
+N, M = 24, 8
+inputs = {"volume": {"value": numpy.random.uniform(0, 150, N), "type": "Array[Float]"}, "indices": {"value": 56 + numpy.arange(N), "type": "Array[Integer]"}}
+experiment0 = runner.run(inputs=inputs)
+for job in experiment0.jobs():
     print(job)
-print(experiment.output)
+print(experiment0.output)
 
 executor = GaussianProcessExecutor()
-executor.teach(runner.model, experiment)
+executor.teach(runner.model, experiment0)
 
-inputs = {"volume": {"value": numpy.random.uniform(0, 100, 16), "type": "Array[Float]"}, "indices": {"value": numpy.arange(16, 32), "type": "Array[Integer]"}}
+inputs = {"volume": {"value": numpy.random.uniform(0, 150, M), "type": "Array[Float]"}, "indices": {"value": 56 + numpy.arange(N, N + M), "type": "Array[Integer]"}}
 experiment1 = runner.run(inputs=inputs)
 print(f"outputs = {experiment1.output}")
 experiment2 = runner.run(inputs=inputs, executor=executor)
 print(f"outputs = {experiment2.output}")
 
+inputs = {"volume": {"value": numpy.linspace(0, 150, 96), "type": "Array[Float]"}, "indices": {"value": numpy.arange(96), "type": "Array[Integer]"}}
+experiment3 = runner.run(inputs=inputs, executor=executor)
+# print(f"outputs = {experiment2.output}")
+
 # plotting
 import matplotlib.pyplot as plt
 
 fig = plt.figure(dpi=300)
-
 for idx in range(3):
     ax = fig.add_subplot(2, 2, idx + 1)
     x = experiment1.output["data"]["value"][idx]
@@ -71,3 +76,24 @@ for idx in range(3):
     ax.set_aspect('equal', 'box')
 plt.tight_layout()
 plt.savefig(f'comparison.png')
+
+fig = plt.figure(dpi=300)
+for idx in range(3):
+    ax = fig.add_subplot(2, 2, idx + 1)
+    x = experiment0.input["volume"]["value"]
+    y = experiment0.output["data"]["value"][idx]
+    ax.plot(x, y, 'k.')
+    x = experiment1.input["volume"]["value"]
+    y = experiment1.output["data"]["value"][idx]
+    ax.plot(x, y, 'k.')
+    x = experiment2.input["volume"]["value"]
+    y = experiment2.output["data"]["value"][idx]
+    ax.plot(x, y, 'r.')
+    x = experiment3.input["volume"]["value"]
+    y = experiment3.output["data"]["value"][idx]
+    ax.plot(x, y, 'r--', alpha=0.3)
+    ax.set_xlim(0, 150)
+    ax.set_xlabel('Input')
+    ax.set_ylabel('Output')
+plt.tight_layout()
+plt.savefig(f'result.png')
