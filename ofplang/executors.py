@@ -20,24 +20,10 @@ class Plate96:
     id: str
     contents: defaultdict[int, numpy.ndarray] = field(default_factory=lambda: defaultdict(lambda: numpy.zeros(96, dtype=float)))
 
-class SimulatorBase(ExecutorBase):
+class BultinExecutor(ExecutorBase):
 
     def __init__(self) -> None:
         pass
-
-    def initialize(self) -> None:
-        # global state
-        self.__plates: dict[str, Plate96] = {}
-        self.__liquids: defaultdict[int, float] = defaultdict(float)  # stock
-
-    def new_plate(self, plate_id: str | None = None) -> str:
-        plate_id = plate_id or str(uuid.uuid4())
-        assert plate_id not in self.__plates
-        self.__plates[plate_id] = Plate96(plate_id)
-        return plate_id
-
-    def get_plate(self, plate_id: str) -> Plate96:
-        return self.__plates[plate_id]
 
     def __call__(self, runner: Runner, jobs: Iterable[tuple[str, EntityDescription, dict]]) -> None:
         for job_id, operation, inputs in jobs:
@@ -48,25 +34,7 @@ class SimulatorBase(ExecutorBase):
         logger.info(f"execute: {(operation, inputs)}")
 
         outputs = {}
-        if operation.type == "ServePlate96":
-            plate_id = self.new_plate(None if outputs_training is None else outputs_training["value"]["value"]["id"])
-            outputs["value"] = {"value": {"id": plate_id}, "type": "Plate96"}
-        elif operation.type == "StoreLabware":
-            pass
-        elif operation.type == "DispenseLiquid96Wells":
-            channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
-            plate_id = inputs["in1"]["value"]["id"]
-            if inputs["in1"]["type"] == "Plate96":
-                assert len(volume) == 96
-            else:
-                indices = inputs["in1"]["value"]["indices"]
-                assert len(volume) == len(indices)
-                volume, tmp = numpy.zeros(96), volume
-                volume[indices] = tmp
-            self.get_plate(plate_id).contents[channel] += volume
-            self.__liquids[channel] += sum(volume)
-            outputs["out1"] = inputs["in1"]
-        elif operation.type == "LabwareToSpotArray":
+        if operation.type == "LabwareToSpotArray":
             indices = inputs["indices"]["value"]
             assert ((0 <= indices) & (indices < 96)).all()
             outputs = {"out1": {"value": {"id": inputs["in1"]["value"]["id"], "indices": indices}, "type": "SpotArray"}}
@@ -82,20 +50,81 @@ class SimulatorBase(ExecutorBase):
             raise OperationNotSupportedError(f"Undefined operation given [{operation.id}, {operation.type}].")
         return outputs
 
+class SimulatorBase(BultinExecutor):
+
+    def __init__(self) -> None:
+        pass
+
+    def initialize(self) -> None:
+        super().initialize()
+
+        # global state
+        self.__plates: dict[str, Plate96] = {}
+        self.__liquids: defaultdict[int, float] = defaultdict(float)  # stock
+
+    def new_plate(self, plate_id: str | None = None) -> str:
+        plate_id = plate_id or str(uuid.uuid4())
+        assert plate_id not in self.__plates
+        self.__plates[plate_id] = Plate96(plate_id)
+        return plate_id
+
+    def get_plate(self, plate_id: str) -> Plate96:
+        return self.__plates[plate_id]
+
+    def execute(self, model: Model, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+        logger.info(f"execute: {(operation, inputs)}")
+
+        try:
+            outputs = super().execute(model, operation, inputs, outputs_training)
+        except OperationNotSupportedError as err:
+            outputs = {}
+            if operation.type == "ServePlate96":
+                plate_id = self.new_plate(None if outputs_training is None else outputs_training["value"]["value"]["id"])
+                outputs["value"] = {"value": {"id": plate_id}, "type": "Plate96"}
+            elif operation.type == "StoreLabware":
+                pass
+            elif operation.type == "DispenseLiquid96Wells":
+                channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
+                plate_id = inputs["in1"]["value"]["id"]
+                if inputs["in1"]["type"] == "Plate96":
+                    assert len(volume) == 96, f"The length of volume must be 96. [{len(volume)}] was given."
+                else:
+                    indices = inputs["in1"]["value"]["indices"]
+                    assert len(volume) == len(indices), f"The length of volume have to be the same with indices [{len(volume)} != {len(indices)}]."
+                    volume, tmp = numpy.zeros(96), volume
+                    volume[indices] = tmp
+                self.get_plate(plate_id).contents[channel] += volume
+                self.__liquids[channel] += sum(volume)
+                outputs["out1"] = inputs["in1"]
+            else:
+                raise err
+        return outputs
+
 class TecanFluentController(SimulatorBase):
 
     def execute(self, model: Model, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         assert outputs_training is None, "'teach' is not supported."
         from . import tecan
 
-        outputs = {}
-        if operation.type == "ServePlate96":
+        try:
             outputs = super().execute(model, operation, inputs, outputs_training)
-        elif operation.type == "StoreLabware":
-            outputs = super().execute(model, operation, inputs, outputs_training)
-        elif operation.type == "DispenseLiquid96Wells":
-            outputs = super().execute(model, operation, inputs, outputs_training)
+        except OperationNotSupportedError as err:
+            outputs = {}
+            if operation.type == "ReadAbsorbance3Colors":
+                params = {}
+                (data, ), _ = tecan.read_absorbance_3colors(**params)
+                if inputs["in1"]["type"] == "Plate96":
+                    pass
+                else:
+                    assert inputs["in1"]["type"] == "SpotArray"
+                    indices = inputs["in1"]["value"]["indices"]
+                    data = [data[0][indices], data[1][indices], data[2][indices]]
+                outputs["value"] = {"value": data, "type": "Spread[Array[Float]]"}
+                outputs["out1"] = inputs["in1"]
+            else:
+                raise err
 
+        if operation.type == "DispenseLiquid96Wells":
             channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
             if inputs["in1"]["type"] == "Plate96":
                 assert len(volume) == 96
@@ -108,19 +137,7 @@ class TecanFluentController(SimulatorBase):
             volume = volume.astype(int)
             params = {'data': volume, 'channel': channel}
             _ = tecan.dispense_liquid_96wells(**params)
-        elif operation.type == "ReadAbsorbance3Colors":
-            params = {}
-            (data, ), _ = tecan.read_absorbance_3colors(**params)
-            if inputs["in1"]["type"] == "Plate96":
-                pass
-            else:
-                assert inputs["in1"]["type"] == "SpotArray"
-                indices = inputs["in1"]["value"]["indices"]
-                data = [data[0][indices], data[1][indices], data[2][indices]]
-            outputs["value"] = {"value": data, "type": "Spread[Array[Float]]"}
-            outputs["out1"] = inputs["in1"]
-        else:
-            outputs = super().execute(model, operation, inputs, outputs_training)
+
         return outputs
 
 class Simulator(SimulatorBase):
