@@ -80,7 +80,7 @@ class Model:
                         port["default"] = input_defaults[port["id"]]
             self.__operations[operation.id] = Operation(Entity(operation.id, operation_type), definition)
 
-    def get_by_id(self, id) -> Operation:
+    def get_by_id(self, id: str) -> Operation:
         return self.__operations[id]
 
     def connections(self) -> Iterator[PortConnection]:
@@ -164,32 +164,36 @@ class ExecutorBase:
     def __call__(self, runner: "Runner", jobs: Iterable[tuple[str, EntityDescription, dict]]) -> None:
         raise NotImplementedError()
 
-class _Preprocessor:
+# class _Preprocessor:
 
-    def __init__(self, runner: "Runner", jobs: list[tuple[str, Operation, dict]]) -> None:
-        self.__runner = runner
-        self.__jobs = jobs
+#     def __init__(self, runner: "Runner", jobs: list[tuple[str, Operation, dict]]) -> None:
+#         self.__runner = runner
+#         self.__jobs = jobs
 
-    def __iter__(self) -> Iterator[tuple[str, EntityDescription, dict]]:
-        for job_id, operation, inputs in self.__jobs:
-            if issubclass(operation.type, BuiltinOperation):
-                outputs = self.execute(job_id, operation, inputs)
-                self.__runner.complete_job(job_id, operation.asentitydesc(), outputs)
-            else:
-                yield (job_id, operation.asentitydesc(), inputs)
+#     def __iter__(self) -> Iterator[tuple[str, EntityDescription, dict]]:
+#         for job_id, operation, inputs in self.__jobs:
+#             if issubclass(operation.type, BuiltinOperation):
+#                 outputs = self.execute(job_id, operation, inputs)
+#                 self.__runner.complete_job(job_id, operation.asentitydesc(), outputs)
+#             else:
+#                 yield (job_id, operation.asentitydesc(), inputs)
 
-    def execute(self, job_id: str, operation: Operation, inputs: dict) -> dict:
-        outputs: dict = {}
-        if issubclass(operation.type, RunScript):
-            script = inputs["script"]["value"]
-            localdict = {key: value["value"] for key, value in inputs.items() if key != "script"}
-            exec(script, {}, localdict)  #XXX: Not safe
-            for _, port in operation.output():
-                assert port.id in localdict, f"No output for [{port.id}]"
-            outputs = {port.id: {"value": localdict[port.id], "type": port.type} for _, port in operation.output()}
-        else:
-            raise OperationNotSupportedError(f"Undefined operation given [{operation.asentitydesc().id}, {operation.asentitydesc().type}].")
-        return outputs
+#     def execute(self, job_id: str, operation: Operation, inputs: dict) -> dict:
+#         outputs: dict = {}
+#         if issubclass(operation.type, RunScript):
+#             script = inputs["script"]["value"]
+#             localdict = {key: value["value"] for key, value in inputs.items() if key != "script"}
+#             exec(script, {}, localdict)  #XXX: Not safe
+#             for _, port in operation.output():
+#                 assert port.id in localdict, f"No output for [{port.id}]"
+#             outputs = {port.id: {"value": localdict[port.id], "type": port.type} for _, port in operation.output()}
+#         elif operation.asentitydesc().type == "SpotArrayFromLabware":
+#             indices = inputs["indices"]["value"]
+#             assert ((0 <= indices) & (indices < 96)).all()
+#             outputs = {"out1": {"value": {"id": inputs["in1"]["value"]["id"], "indices": indices}, "type": "SpotArray"}}
+#         else:
+#             raise OperationNotSupportedError(f"Undefined operation given [{operation.asentitydesc().id}, {operation.asentitydesc().type}].")
+#         return outputs
 
 class Runner:
 
@@ -278,7 +282,8 @@ class Runner:
         while self.num_tokens() > 0:
             self.transmit_token()
             jobs = self.list_jobs()
-            executor(self, _Preprocessor(self, jobs))
+            # executor(self, _Preprocessor(self, jobs))
+            executor(self, ((job[0], job[1].asentitydesc(), job[2]) for job in jobs))
             if all(self.has_token(address) for address, _ in self.model.output()):
                 break
         else:

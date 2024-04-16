@@ -19,7 +19,7 @@ experiment = runner.run(inputs=inputs_training)
 print(f"outputs = {experiment.output}")
 
 executor = GaussianProcessExecutor()
-executor.teach(experiment)
+executor.teach(runner.model, experiment)
 
 inputs = {"volume": {"value": numpy.random.uniform(0, 200, 96), "type": "Array[Float]"}}
 print(f"inputs = {inputs}")
@@ -31,12 +31,20 @@ print(f"outputs = {prediction.output}")
 
 # plotting
 import matplotlib.pyplot as plt
-fig = plt.figure(dpi=300)
-ax = fig.add_subplot(111)
-ax.plot((-0.1, +1.1), (-0.1, +1.1), "k--")
-ax.plot(new_experiment.output["data"]["value"][0], prediction.output["data"]["value"][0], 'k.')
-ax.set_xlabel(r'$Experiment$')
-ax.set_ylabel(r'$Prediction$')
-ax.set_aspect('equal', 'box')
-plt.tight_layout()
-plt.savefig('comparison.png')
+for idx in range(3):
+    x = new_experiment.output["data"]["value"][idx]
+    y = prediction.output["data"]["value"][idx]
+    vmin = min(x.min(), y.min())
+    vmax = max(x.max(), y.max())
+    vmin, vmax = vmin - (vmin + vmax) * 0.05, vmax + (vmin + vmax) * 0.05
+    fig = plt.figure(dpi=300)
+    ax = fig.add_subplot(111)
+    ax.plot((vmin, vmax), (vmin, vmax), "k--")
+    ax.plot(x, y, 'k.')
+    #ax.plot(inputs["volume"]["value"], x, 'k.')
+    #ax.plot(inputs["volume"]["value"], y, 'r.')
+    ax.set_xlabel(r'$Experiment$')
+    ax.set_ylabel(r'$Prediction$')
+    # ax.set_aspect('equal', 'box')
+    plt.tight_layout()
+    plt.savefig(f'comparison{idx}.png')

@@ -5,8 +5,19 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 from . import definitions
-from ._entity_type import EntityType, Object, Data, Operation, IOOperation, Spread, Optional, Array, BuiltinOperation, RunScript, check_entity_type, is_data, is_object, is_acceptable
+from ._entity_type import EntityType, Object, Data, Operation, Spread, Optional, Array, check_entity_type, is_data, is_object, is_acceptable
 
+class Number(Data): pass
+class Float(Number): pass
+class Integer(Number): pass
+class String(Data): pass
+
+class Labware(Object): pass
+class SpotArray(Labware): pass
+
+class IOOperation(Operation): pass  #XXX
+class BuiltinOperation(Operation): pass
+class RunScript(BuiltinOperation): pass
 
 class TypeManager:
 
@@ -20,12 +31,21 @@ class TypeManager:
             "Object": Object,
             "Data": Data,
             "Operation": Operation,
-            "IOOperation": IOOperation,
-            "BuiltinOperation": BuiltinOperation,
-            "RunScript": RunScript,
             "Spread": Spread,
             "Optional": Optional,
             "Array": Array,
+
+            "Number": Number,
+            "Float": Float,
+            "Integer": Integer,
+            "String": String,
+
+            "Labware": Labware,
+            "SpotArray": SpotArray,
+
+            "IOOperation": IOOperation,
+            "BuiltinOperation": BuiltinOperation,
+            "RunScript": RunScript,
             }
 
         for x in self.__definitions:

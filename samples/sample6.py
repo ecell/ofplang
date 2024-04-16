@@ -21,7 +21,7 @@ experiment = runner.run(inputs=inputs_training)
 print(f"outputs = {experiment.output}")
 
 executor = GaussianProcessExecutor()
-executor.teach(experiment)
+executor.teach(runner.model, experiment)
 
 # first test
 inputs = {"volume": {"value": numpy.random.uniform(0, 200, 96), "type": "Array[Float]"}}
@@ -47,7 +47,7 @@ for _ in range(12):
     experiment = runner.run(inputs=inputs_query)
     # print(f"outputs = {experiment.output}")
 
-    executor.teach(experiment)
+    executor.teach(runner.model, experiment)
 
 # second test
 inputs = {"volume": {"value": numpy.random.uniform(0, 200, 96), "type": "Array[Float]"}}

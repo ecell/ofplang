@@ -10,7 +10,8 @@ from collections import defaultdict
 from collections.abc import Iterable
 import numpy
 
-from .runner import Runner, ExecutorBase, Experiment, OperationNotSupportedError
+from .entity_type import RunScript
+from .runner import Runner, ExecutorBase, Experiment, OperationNotSupportedError, Model
 from .protocol import EntityDescription
 
 
@@ -40,10 +41,10 @@ class SimulatorBase(ExecutorBase):
 
     def __call__(self, runner: Runner, jobs: Iterable[tuple[str, EntityDescription, dict]]) -> None:
         for job_id, operation, inputs in jobs:
-            outputs = self.execute(operation, inputs)
+            outputs = self.execute(runner.model, operation, inputs)
             runner.complete_job(job_id, operation, outputs)
 
-    def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+    def execute(self, model: Model, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         logger.info(f"execute: {(operation, inputs)}")
 
         outputs = {}
@@ -55,34 +56,67 @@ class SimulatorBase(ExecutorBase):
         elif operation.type == "DispenseLiquid96Wells":
             channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
             plate_id = inputs["in1"]["value"]["id"]
+            if inputs["in1"]["type"] == "Plate96":
+                assert len(volume) == 96
+            else:
+                indices = inputs["in1"]["value"]["indices"]
+                assert len(volume) == len(indices)
+                volume, tmp = numpy.zeros(96), volume
+                volume[indices] = tmp
             self.get_plate(plate_id).contents[channel] += volume
             self.__liquids[channel] += sum(volume)
             outputs["out1"] = inputs["in1"]
+        elif operation.type == "LabwareToSpotArray":
+            indices = inputs["indices"]["value"]
+            assert ((0 <= indices) & (indices < 96)).all()
+            outputs = {"out1": {"value": {"id": inputs["in1"]["value"]["id"], "indices": indices}, "type": "SpotArray"}}
+        elif issubclass(model.get_by_id(operation.id).type, RunScript):
+            _operation = model.get_by_id(operation.id)
+            script = inputs["script"]["value"]
+            localdict = {key: value["value"] for key, value in inputs.items() if key != "script"}
+            exec(script, {}, localdict)  #XXX: Not safe
+            for _, port in _operation.output():
+                assert port.id in localdict, f"No output for [{port.id}]"
+            outputs = {port.id: {"value": localdict[port.id], "type": port.type} for _, port in _operation.output()}
         else:
             raise OperationNotSupportedError(f"Undefined operation given [{operation.id}, {operation.type}].")
         return outputs
 
 class TecanFluentController(SimulatorBase):
 
-    def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+    def execute(self, model: Model, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         assert outputs_training is None, "'teach' is not supported."
         from . import tecan
 
         outputs = {}
         if operation.type == "ServePlate96":
-            outputs = super().execute(operation, inputs, outputs_training)
+            outputs = super().execute(model, operation, inputs, outputs_training)
         elif operation.type == "StoreLabware":
-            outputs = super().execute(operation, inputs, outputs_training)
+            outputs = super().execute(model, operation, inputs, outputs_training)
         elif operation.type == "DispenseLiquid96Wells":
-            outputs = super().execute(operation, inputs, outputs_training)
+            outputs = super().execute(model, operation, inputs, outputs_training)
 
             channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
+            if inputs["in1"]["type"] == "Plate96":
+                assert len(volume) == 96
+            else:
+                indices = inputs["in1"]["value"]["indices"]
+                assert len(volume) == len(indices)
+                volume, tmp = numpy.zeros(96), volume
+                volume[indices] = tmp
+
             volume = volume.astype(int)
             params = {'data': volume, 'channel': channel}
             _ = tecan.dispense_liquid_96wells(**params)
         elif operation.type == "ReadAbsorbance3Colors":
             params = {}
             (data, ), _ = tecan.read_absorbance_3colors(**params)
+            if inputs["in1"]["type"] == "Plate96":
+                pass
+            else:
+                assert inputs["in1"]["type"] == "SpotArray"
+                indices = inputs["in1"]["value"]["indices"]
+                data = [data[0][indices], data[1][indices], data[2][indices]]
             outputs["value"] = {"value": data, "type": "Spread[Array[Float]]"}
             outputs["out1"] = inputs["in1"]
         else:
@@ -91,17 +125,18 @@ class TecanFluentController(SimulatorBase):
 
 class Simulator(SimulatorBase):
 
-    def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+    def execute(self, model: Model, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         assert outputs_training is None, "'teach' is not supported."
 
         try:
-            outputs = super().execute(operation, inputs, outputs_training)
+            outputs = super().execute(model, operation, inputs, outputs_training)
         except OperationNotSupportedError as err:
             outputs = {}
             if operation.type == "ReadAbsorbance3Colors":
                 plate_id = inputs["in1"]["value"]["id"]
-                start = numpy.zeros(96, dtype=float)  # self.get_plate(plate_id).contents.default_factory()
-                contents = sum(self.get_plate(plate_id).contents.values(), start)
+                # start = numpy.zeros(96, dtype=float)  # self.get_plate(plate_id).contents.default_factory()
+                # contents = sum(self.get_plate(plate_id).contents.values(), start)
+                contents = self.get_plate(plate_id).contents[0]
 
                 value1: numpy.ndarray = contents ** 3 / (contents ** 3 + 100.0 ** 3)  # Sigmoid
                 value1 += numpy.random.normal(scale=0.05, size=value1.shape)
@@ -109,6 +144,13 @@ class Simulator(SimulatorBase):
                 value2 += numpy.random.normal(scale=5, size=value2.shape)
                 value3: numpy.ndarray = 30 * (numpy.sin(contents / 50.0 * numpy.pi) + 1.0) + 15  # Sin
                 value3 += numpy.random.normal(scale=3, size=value3.shape)
+
+                if inputs["in1"]["type"] == "Plate96":
+                    pass
+                else:
+                    assert inputs["in1"]["type"] == "SpotArray"
+                    indices = inputs["in1"]["value"]["indices"]
+                    value1, value2, value3 = value1[indices], value2[indices], value3[indices]
 
                 outputs["value"] = {"value": [value1, value2, value3], "type": "Spread[Array[Float]]"}
                 outputs["out1"] = inputs["in1"]
@@ -155,22 +197,28 @@ class GaussianProcessExecutor(SimulatorBase):
             self.__X_training = numpy.hstack((self.__X_training, numpy.zeros(self.__X_training.shape[0], dtype=float).reshape(-1, 1)))
         return value
 
-    def execute(self, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+    def execute(self, model: Model, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         try:
-            outputs = super().execute(operation, inputs, outputs_training)
+            outputs = super().execute(model, operation, inputs, outputs_training)
         except OperationNotSupportedError as err:
             outputs = {}
             if operation.type == "ReadAbsorbance3Colors":
                 plate_id = inputs["in1"]["value"]["id"]
                 plate = self.get_plate(plate_id)
 
+                if inputs["in1"]["type"] == "Plate96":
+                    indices = numpy.arange(96)
+                else:
+                    assert inputs["in1"]["type"] == "SpotArray"
+                    indices = inputs["in1"]["value"]["indices"]
+
                 for channel in plate.contents.keys():
                     if channel not in self.__feature_indices:
                         self.__add_feature(channel)
 
-                contents = numpy.zeros((96, len(self.__feature_indices)), dtype=float)
+                contents = numpy.zeros((len(indices), len(self.__feature_indices)), dtype=float)
                 for channel, value in plate.contents.items():
-                    contents.T[self.__feature_indices[channel]] = numpy.array(value)
+                    contents.T[self.__feature_indices[channel]] = numpy.array(value)[indices]
 
                 if outputs_training is not None:
                     # train here
@@ -178,7 +226,7 @@ class GaussianProcessExecutor(SimulatorBase):
                     self.__teach(contents, y_training)
                 (value, std) = self.__predict(contents)
 
-                print(f"value.shape = {value.shape}")
+                # print(f"value.shape = {value.shape}")
                 outputs["value"] = {"value": [value.T[0], value.T[1], value.T[2]], "type": "Spread[Array[Float]]"}
                 outputs["out1"] = inputs["in1"]
 
@@ -209,7 +257,7 @@ class GaussianProcessExecutor(SimulatorBase):
         # pred_mu, pred_sigma = pred_mu.ravel(), pred_sigma.ravel()
         return pred_mu, pred_sigma
 
-    def teach(self, experiment: Experiment) -> None:
+    def teach(self, model: Model, experiment: Experiment) -> None:
         self.initialize()
         for job in experiment.jobs():
             if job.operation.id == "input" or job.operation.id == "output":
@@ -218,7 +266,7 @@ class GaussianProcessExecutor(SimulatorBase):
             inputs = {token.address.port_id: token.value for token in job.inputs}
             assert job.outputs is not None
             outputs = {token.address.port_id: token.value for token in job.outputs}
-            self.execute(job.operation, inputs, outputs)
+            self.execute(model, job.operation, inputs, outputs)
 
     def query(self, runner: Runner | Iterable[Runner], inputs: Iterable[dict]) -> tuple[int, float]:
         if isinstance(runner, Runner):

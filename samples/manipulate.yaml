@@ -1,16 +1,6 @@
-- name: Labware
-  ref: Object
 - name: Plate96
   ref: Labware
   description: A 96-well plate.
-- name: Number
-  ref: Data
-- name: Float
-  ref: Number
-- name: Integer
-  ref: Number
-- name: String
-  ref: Data
 - name: Unit
   ref: String
 - name: ServePlate96
@@ -30,12 +20,23 @@
       default:
         value: ""
         type: String
+- name: LabwareToSpotArray
+  ref: BuiltinOperation
+  description: ""
+  input:
+    - id: in1
+      type: Labware
+    - id: indices
+      type: Array[Integer]
+  output:
+    - id: out1
+      type: SpotArray
 - name: DispenseLiquid96Wells
   ref: Operation
   description: Dispense liquid into the 96-well plate.
   input:
     - id: in1
-      type: Plate96
+      type: SpotArray | Plate96
     - id: channel
       type: Integer
       default:
@@ -56,7 +57,7 @@
   description: Measure the absorbance of the 96-well plate.
   input:
     - id: in1
-      type: Plate96
+      type: SpotArray | Plate96
   output:
     - id: out1
       type: Plate96
