@@ -2,13 +2,17 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger
 
-logger = getLogger(__name__)
-
 from typing import NamedTuple, IO, Any
 from collections.abc import Iterator
 from copy import deepcopy
-import pathlib, dataclasses, sys, io
+import pathlib
+import dataclasses
+import sys
+import io
 import yaml  # type: ignore
+
+logger = getLogger(__name__)
+
 
 @dataclasses.dataclass
 class EntityDescription:

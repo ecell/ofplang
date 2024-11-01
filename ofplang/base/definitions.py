@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger
 
-logger = getLogger(__name__)
-
 import pathlib
 import yaml  # type: ignore
 from copy import deepcopy
 from typing import IO
+
+logger = getLogger(__name__)
 
 
 class Definitions:

@@ -2,19 +2,15 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger
 
-logger = getLogger(__name__)
-
-import uuid, itertools
-from dataclasses import dataclass, field
-from collections import defaultdict
-from collections.abc import Iterable
+from typing import Any
 import numpy
 
-from ..base.entity_type import RunScript
-from ..base.runner import Runner, ExecutorBase, Experiment, OperationNotSupportedError, Model
+from ..base.runner import OperationNotSupportedError, Model
 from ..base.protocol import EntityDescription
 
 from .simulator import SimulatorBase
+
+logger = getLogger(__name__)
 
 
 class TecanFluentController(SimulatorBase):
@@ -28,7 +24,7 @@ class TecanFluentController(SimulatorBase):
         except OperationNotSupportedError as err:
             outputs = {}
             if operation.type == "ReadAbsorbance3Colors":
-                params = {}
+                params: dict[str, Any] = {}
                 (data, ), _ = tecan.read_absorbance_3colors(**params)
                 if inputs["in1"]["type"] == "Plate96":
                     pass

@@ -3,9 +3,11 @@
 # mypy: disable-error-code="misc"
 from logging import getLogger
 
-logger = getLogger(__name__)
+import typing
+import types
+import inspect
 
-import typing, types, inspect
+logger = getLogger(__name__)
 
 
 class EntityType(type): pass

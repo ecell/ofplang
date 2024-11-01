@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger
 
-logger = getLogger(__name__)
-
-import dataclasses, pathlib, uuid
+import dataclasses
+import pathlib
+import uuid
 from collections import defaultdict, deque, OrderedDict
 from typing import Any, ValuesView, IO
 from collections.abc import Iterable, Iterator, MutableMapping
@@ -12,9 +12,11 @@ from enum import IntEnum, auto
 
 from .protocol import PortAddress, Port, Protocol, PortConnection, EntityDescription
 from .definitions import Definitions
-from .entity_type import TypeManager, IOOperation, BuiltinOperation, RunScript
+from .entity_type import TypeManager, IOOperation
 from . import entity_type
 from .validate import check_definitions, check_protocol
+
+logger = getLogger(__name__)
 
 
 @dataclasses.dataclass

@@ -1,12 +1,14 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+
 from logging import getLogger
+import pathlib
+import time
+import datetime
+import numpy
+from tecan import Fluent  # type: ignore
 
 logger = getLogger(__name__)
-
-import pathlib, time, datetime
-
-import numpy
 
 
 MAGELLAN_PATH = r"C:\Users\Public\Documents\Tecan\Magellan Pro\asc"
@@ -149,7 +151,6 @@ def measure_volume_96wells():
     data, (header, ) = loadattr(attrfile)
     return (data, ), {'header': header, 'filename': str(attrfile)}
 
-from tecan import Fluent  # type: ignore
 
 # fluent = Fluent("127.0.0.1", 50052)
 fluent = Fluent.discover(10)

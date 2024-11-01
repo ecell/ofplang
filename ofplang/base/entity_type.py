@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger
 
-logger = getLogger(__name__)
-
 from . import definitions
 from ._entity_type import EntityType, Object, Data, Operation, Spread, Optional, Array, check_entity_type, is_data, is_object, is_acceptable
+
+logger = getLogger(__name__)
+
 
 class Number(Data): pass
 class Float(Number): pass

@@ -2,17 +2,13 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger
 
-logger = getLogger(__name__)
-
-import uuid, itertools
-from dataclasses import dataclass, field
-from collections import defaultdict
 from collections.abc import Iterable
-import numpy
 
 from ..base.entity_type import RunScript
-from ..base.runner import Runner, ExecutorBase, Experiment, OperationNotSupportedError, Model
+from ..base.runner import Runner, ExecutorBase, OperationNotSupportedError, Model
 from ..base.protocol import EntityDescription
+
+logger = getLogger(__name__)
 
 
 class BuiltinExecutor(ExecutorBase):

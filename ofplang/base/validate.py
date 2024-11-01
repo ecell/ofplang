@@ -2,14 +2,14 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger
 
-logger = getLogger(__name__)
-
 import itertools
 from collections import defaultdict
 
 from .entity_type import TypeManager, Operation
 from .definitions import Definitions
 from .protocol import Protocol
+
+logger = getLogger(__name__)
 
 
 def check_protocol(protocol: Protocol, definitions: Definitions | None = None) -> None:
