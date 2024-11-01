@@ -6,3 +6,6 @@ scikit-learn
 #graphviz
 sila2
 #-e git+https://gitlab.com/tecan/fluent-sila2-connector.git#egg=tecan&subdirectory=Python
+#optuna
+#torch
+#matplotlib

@@ -197,7 +197,14 @@ class ExecutorBase:
 
 class Runner:
 
-    def __init__(self, protocol: Protocol, definitions: Definitions, executor: ExecutorBase | None = None) -> None:
+    def __init__(self, protocol: str | Protocol, definitions: str | Definitions, executor: ExecutorBase | None = None) -> None:
+        definitions = definitions if isinstance(definitions, Definitions) else Definitions(definitions)
+        protocol = protocol if isinstance(protocol, Protocol) else Protocol(protocol)
+
+        # check inputs
+        check_definitions(definitions)
+        check_protocol(protocol, definitions)
+
         self.__model = Model(protocol, definitions)
         self.__tokens: MutableMapping[PortAddress, deque[Token]] = defaultdict(deque)
 
