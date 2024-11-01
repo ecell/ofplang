@@ -1,0 +1,61 @@
+input:
+  - id: volume
+    type: Array[Float]
+  - id: channel
+    type: Integer
+    default:
+      value: 0
+      type: Integer
+output:
+  - id: data
+    type: Spread[Array[Float]]
+operations:
+  - id: serve_plate1
+    type: ServePlate96
+  - id: dispense_liquid1
+    type: DispenseLiquid96Wells
+    # input:
+    #   - id: channel
+    #     type: Integer
+    #     value: 0
+  - id: read_absorbance1
+    type: ReadAbsorbance3Colors
+  - id: store_labware1
+    type: StoreLabware
+connections:
+  - input:
+      - input
+      - volume
+    output:
+      - dispense_liquid1
+      - volume
+  - input:
+      - input
+      - channel
+    output:
+      - dispense_liquid1
+      - channel
+  - input:
+      - serve_plate1
+      - value
+    output:
+      - dispense_liquid1
+      - in1
+  - input:
+      - dispense_liquid1
+      - out1
+    output:
+      - read_absorbance1
+      - in1
+  - input:
+      - read_absorbance1
+      - out1
+    output:
+      - store_labware1
+      - in1
+  - input:
+      - read_absorbance1
+      - value
+    output:
+      - output
+      - data
