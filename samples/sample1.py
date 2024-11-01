@@ -13,9 +13,12 @@ import optuna
 def objective(trial):
     assert 0 <= trial.number < 96
     x = trial.suggest_float('x', 0, 200)
-    volume = numpy.zeros(96, dtype=float)
-    volume[trial.number] = x
-    inputs = {"volume": {"value": volume, "type": "Array[Float]"}}
+    y = trial.suggest_float('y', 0, 200)
+    volume1 = numpy.zeros(96, dtype=float)
+    volume1[trial.number] = x
+    volume2 = numpy.zeros(96, dtype=float)
+    volume2[trial.number] = y
+    inputs = {"volume1": {"value": volume1, "type": "Array[Float]"}, "volume2": {"value": volume2, "type": "Array[Float]"}}
     outputs = runner.run(inputs).output
     y = outputs["data"]["value"][0][trial.number]
     return (y - 0.5) ** 2

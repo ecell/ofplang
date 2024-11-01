@@ -15,7 +15,7 @@ from ..base.runner import Runner, ExecutorBase, Experiment, OperationNotSupporte
 from ..base.protocol import EntityDescription
 
 
-class BultinExecutor(ExecutorBase):
+class BuiltinExecutor(ExecutorBase):
 
     def __init__(self) -> None:
         pass
@@ -43,59 +43,4 @@ class BultinExecutor(ExecutorBase):
             outputs = {port.id: {"value": localdict[port.id], "type": port.type} for _, port in _operation.output()}
         else:
             raise OperationNotSupportedError(f"Undefined operation given [{operation.id}, {operation.type}].")
-        return outputs
-
-@dataclass
-class Plate96:
-    id: str
-    contents: defaultdict[int, numpy.ndarray] = field(default_factory=lambda: defaultdict(lambda: numpy.zeros(96, dtype=float)))
-
-class SimulatorBase(BultinExecutor):
-
-    def __init__(self) -> None:
-        pass
-
-    def initialize(self) -> None:
-        super().initialize()
-
-        # global state
-        self.__plates: dict[str, Plate96] = {}
-        self.__liquids: defaultdict[int, float] = defaultdict(float)  # stock
-
-    def new_plate(self, plate_id: str | None = None) -> str:
-        plate_id = plate_id or str(uuid.uuid4())
-        assert plate_id not in self.__plates
-        self.__plates[plate_id] = Plate96(plate_id)
-        return plate_id
-
-    def get_plate(self, plate_id: str) -> Plate96:
-        return self.__plates[plate_id]
-
-    def execute(self, model: Model, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
-        logger.info(f"execute: {(operation, inputs)}")
-
-        try:
-            outputs = super().execute(model, operation, inputs, outputs_training)
-        except OperationNotSupportedError as err:
-            outputs = {}
-            if operation.type == "ServePlate96":
-                plate_id = self.new_plate(None if outputs_training is None else outputs_training["value"]["value"]["id"])
-                outputs["value"] = {"value": {"id": plate_id}, "type": "Plate96"}
-            elif operation.type == "StoreLabware":
-                pass
-            elif operation.type == "DispenseLiquid96Wells":
-                channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
-                plate_id = inputs["in1"]["value"]["id"]
-                if inputs["in1"]["type"] == "Plate96":
-                    assert len(volume) == 96, f"The length of volume must be 96. [{len(volume)}] was given."
-                else:
-                    indices = inputs["in1"]["value"]["indices"]
-                    assert len(volume) == len(indices), f"The length of volume have to be the same with indices [{len(volume)} != {len(indices)}]."
-                    volume, tmp = numpy.zeros(96), volume
-                    volume[indices] = tmp
-                self.get_plate(plate_id).contents[channel] += volume
-                self.__liquids[channel] += sum(volume)
-                outputs["out1"] = inputs["in1"]
-            else:
-                raise err
         return outputs

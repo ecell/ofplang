@@ -14,7 +14,7 @@ from ..base.entity_type import RunScript
 from ..base.runner import Runner, ExecutorBase, Experiment, OperationNotSupportedError, Model
 from ..base.protocol import EntityDescription
 
-from .builtin import SimulatorBase
+from .simulator import SimulatorBase
 
 
 class TecanFluentController(SimulatorBase):

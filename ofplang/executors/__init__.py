@@ -1,76 +1,23 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from logging import getLogger
+# from logging import getLogger
+# 
+# logger = getLogger(__name__)
+# 
+# import uuid, itertools
+# from dataclasses import dataclass, field
+# from collections import defaultdict
+# from collections.abc import Iterable
+# import numpy
+# 
+# from ..base.entity_type import RunScript
+# from ..base.runner import Runner, ExecutorBase, Experiment, OperationNotSupportedError, Model
+# from ..base.protocol import EntityDescription
+# 
+# from .builtin import BuiltinExecutor
 
-logger = getLogger(__name__)
-
-import uuid, itertools
-from dataclasses import dataclass, field
-from collections import defaultdict
-from collections.abc import Iterable
-import numpy
-
-from ..base.entity_type import RunScript
-from ..base.runner import Runner, ExecutorBase, Experiment, OperationNotSupportedError, Model
-from ..base.protocol import EntityDescription
-
-from .builtin import BuiltinExecutor, SimulatorBase
+from .simulator import Simulator
 from .fluent import TecanFluentController
-
-
-
-class Simulator(SimulatorBase):
-
-    def execute(self, model: Model, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
-        assert outputs_training is None, "'teach' is not supported."
-
-        try:
-            outputs = super().execute(model, operation, inputs, outputs_training)
-        except OperationNotSupportedError as err:
-            outputs = {}
-            if operation.type == "ReadAbsorbance3Colors":
-                plate_id = inputs["in1"]["value"]["id"]
-                # start = numpy.zeros(96, dtype=float)  # self.get_plate(plate_id).contents.default_factory()
-                # contents = sum(self.get_plate(plate_id).contents.values(), start)
-                # contents = self.get_plate(plate_id).contents[2]
-                contents = self.get_plate(plate_id).contents
-
-                x = numpy.zeros(96, dtype=float)
-                if 1 in contents:
-                    x += contents[1] * 1.0
-                if 2 in contents:
-                    x += contents[2] * 1.0
-                value1 = 30 * numpy.cos(x / 10.0 * numpy.pi) + 50  # Cosine
-                value1 += numpy.random.normal(scale=0.1, size=value1.shape)
-
-                x = numpy.zeros(96, dtype=float)
-                if 1 in contents:
-                    x += contents[1] * 0.2
-                if 2 in contents:
-                    x += contents[2] * 1.8
-                value2: numpy.ndarray = 100 * x / (x + 180.0) + 50  # Sigmoid
-                value2 += numpy.random.normal(scale=0, size=value2.shape)
-
-                x = numpy.zeros(96, dtype=float)
-                if 1 in contents:
-                    x += contents[1] * 1.8
-                if 2 in contents:
-                    x += contents[2] * 0.2
-                value3: numpy.ndarray = 30 * (numpy.sin(x / 50.0 * numpy.pi) + 1.0) + 15  # Sin
-                value3 += numpy.random.normal(scale=0, size=value3.shape)
-
-                if inputs["in1"]["type"] == "Plate96":
-                    pass
-                else:
-                    assert inputs["in1"]["type"] == "SpotArray"
-                    indices = inputs["in1"]["value"]["indices"]
-                    value1, value2, value3 = value1[indices], value2[indices], value3[indices]
-
-                outputs["value"] = {"value": [value1, value2, value3], "type": "Spread[Array[Float]]"}
-                outputs["out1"] = inputs["in1"]
-            else:
-                raise err
-        return outputs
 
 # import numpy as np
 # import torch
