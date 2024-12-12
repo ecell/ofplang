@@ -3,7 +3,7 @@
 from logging import getLogger
 
 from . import definitions
-from ._entity_type import EntityType, Object, Data, Operation, Spread, Optional, Array, check_entity_type, is_data, is_object, is_acceptable
+from ._entity_type import EntityType, Object, Data, Process, Spread, Optional, Array, check_entity_type, is_data, is_object, is_acceptable
 
 logger = getLogger(__name__)
 
@@ -16,9 +16,9 @@ class String(Data): pass
 class Labware(Object): pass
 class SpotArray(Labware): pass
 
-class IOOperation(Operation): pass  #XXX
-class BuiltinOperation(Operation): pass
-class RunScript(BuiltinOperation): pass
+class IOProcess(Process): pass  #XXX
+class BuiltinProcess(Process): pass
+class RunScript(BuiltinProcess): pass
 
 class TypeManager:
 
@@ -31,7 +31,7 @@ class TypeManager:
         self.__primitive_types = {
             "Object": Object,
             "Data": Data,
-            "Operation": Operation,
+            "Process": Process,
             "Spread": Spread,
             "Optional": Optional,
             "Array": Array,
@@ -44,8 +44,8 @@ class TypeManager:
             "Labware": Labware,
             "SpotArray": SpotArray,
 
-            "IOOperation": IOOperation,
-            "BuiltinOperation": BuiltinOperation,
+            "IOProcess": IOProcess,
+            "BuiltinProcess": BuiltinProcess,
             "RunScript": RunScript,
             }
 

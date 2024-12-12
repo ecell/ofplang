@@ -12,7 +12,7 @@ from enum import IntEnum, auto
 
 from .protocol import PortAddress, Port, Protocol, PortConnection, EntityDescription
 from .definitions import Definitions
-from .entity_type import TypeManager, IOOperation
+from .entity_type import TypeManager, IOProcess
 from . import entity_type
 from .validate import check_definitions, check_protocol
 
@@ -24,7 +24,7 @@ class Entity:
     id: str
     type: type
 
-class Operation:
+class Process:
 
     def __init__(self, entity: Entity, definition: dict) -> None:
         self.__entity = entity
@@ -74,26 +74,26 @@ class Model:
         self.__load()
 
     def __load(self) -> None:
-        self.__operations = OrderedDict()
-        for operation, operation_dict in self.__protocol.operations_with_dict():
-            operation_type = self.__type_manager.eval_primitive_type(operation.type)
-            assert issubclass(operation_type, entity_type.Operation), f"[{operation.type}] is not Operation."
-            definition = self.__definitions.get_by_name(operation.type)
-            if "input" in operation_dict:
-                input_defaults = {port["id"]: {"value": port["value"], "type": port["type"]} for port in operation_dict["input"]}
+        self.__processes = OrderedDict()
+        for process, process_dict in self.__protocol.processes_with_dict():
+            process_type = self.__type_manager.eval_primitive_type(process.type)
+            assert issubclass(process_type, entity_type.Process), f"[{process.type}] is not Process."
+            definition = self.__definitions.get_by_name(process.type)
+            if "input" in process_dict:
+                input_defaults = {port["id"]: {"value": port["value"], "type": port["type"]} for port in process_dict["input"]}
                 for port in definition["input"]:
                     if port["id"] in input_defaults:
                         port["default"] = input_defaults[port["id"]]
-            self.__operations[operation.id] = Operation(Entity(operation.id, operation_type), definition)
+            self.__processes[process.id] = Process(Entity(process.id, process_type), definition)
 
-    def get_by_id(self, id: str) -> Operation:
-        return self.__operations[id]
+    def get_by_id(self, id: str) -> Process:
+        return self.__processes[id]
 
     def connections(self) -> Iterator[PortConnection]:
         return self.__protocol.connections()
 
-    def operations(self) -> Iterable[Operation]:
-        return self.__operations.values()
+    def processes(self) -> Iterable[Process]:
+        return self.__processes.values()
 
     def input(self) -> Iterator[tuple[PortAddress, Port]]:
         #XXX: default?
@@ -172,33 +172,33 @@ class ExecutorBase:
 
 # class _Preprocessor:
 
-#     def __init__(self, runner: "Runner", jobs: list[tuple[str, Operation, dict]]) -> None:
+#     def __init__(self, runner: "Runner", jobs: list[tuple[str, Process, dict]]) -> None:
 #         self.__runner = runner
 #         self.__jobs = jobs
 
 #     def __iter__(self) -> Iterator[tuple[str, EntityDescription, dict]]:
-#         for job_id, operation, inputs in self.__jobs:
-#             if issubclass(operation.type, BuiltinOperation):
-#                 outputs = self.execute(job_id, operation, inputs)
-#                 self.__runner.complete_job(job_id, operation.asentitydesc(), outputs)
+#         for job_id, process, inputs in self.__jobs:
+#             if issubclass(process.type, BuiltinProcess):
+#                 outputs = self.execute(job_id, process, inputs)
+#                 self.__runner.complete_job(job_id, process.asentitydesc(), outputs)
 #             else:
-#                 yield (job_id, operation.asentitydesc(), inputs)
+#                 yield (job_id, process.asentitydesc(), inputs)
 
-#     def execute(self, job_id: str, operation: Operation, inputs: dict) -> dict:
+#     def execute(self, job_id: str, process: Process, inputs: dict) -> dict:
 #         outputs: dict = {}
-#         if issubclass(operation.type, RunScript):
+#         if issubclass(process.type, RunScript):
 #             script = inputs["script"]["value"]
 #             localdict = {key: value["value"] for key, value in inputs.items() if key != "script"}
 #             exec(script, {}, localdict)  #XXX: Not safe
-#             for _, port in operation.output():
+#             for _, port in process.output():
 #                 assert port.id in localdict, f"No output for [{port.id}]"
-#             outputs = {port.id: {"value": localdict[port.id], "type": port.type} for _, port in operation.output()}
-#         elif operation.asentitydesc().type == "SpotArrayFromLabware":
+#             outputs = {port.id: {"value": localdict[port.id], "type": port.type} for _, port in process.output()}
+#         elif process.asentitydesc().type == "SpotArrayFromLabware":
 #             indices = inputs["indices"]["value"]
 #             assert ((0 <= indices) & (indices < 96)).all()
 #             outputs = {"out1": {"value": {"id": inputs["in1"]["value"]["id"], "indices": indices}, "type": "SpotArray"}}
 #         else:
-#             raise OperationNotSupportedError(f"Undefined operation given [{operation.asentitydesc().id}, {operation.asentitydesc().type}].")
+#             raise ProcessNotSupportedError(f"Undefined process given [{process.asentitydesc().id}, {process.asentitydesc().type}].")
 #         return outputs
 
 class Runner:
@@ -210,7 +210,7 @@ class Runner:
         self.__model = Model(protocol, definitions)
         self.__tokens: MutableMapping[PortAddress, deque[Token]] = defaultdict(deque)
 
-        self.__operation_status = {operation.id: StatusEnum.INACTIVE for operation in self.__model.operations()}
+        self.__process_status = {process.id: StatusEnum.INACTIVE for process in self.__model.processes()}
         self.__executor = executor
         self.__experiment: Experiment = Experiment()
 
@@ -223,12 +223,12 @@ class Runner:
         self.__executor = func
 
     def activate_all(self) -> None:
-        for operation_id in self.__operation_status.keys():
-            self.__operation_status[operation_id] = StatusEnum.ACTIVE
+        for process_id in self.__process_status.keys():
+            self.__process_status[process_id] = StatusEnum.ACTIVE
 
     def deactivate(self, id: str) -> None:
-        assert id in self.__operation_status
-        self.__operation_status[id] = StatusEnum.INACTIVE
+        assert id in self.__process_status
+        self.__process_status[id] = StatusEnum.INACTIVE
 
     def transmit_token(self) -> None:
         new_tokens: MutableMapping[PortAddress, deque[Token]] = defaultdict(deque)
@@ -242,28 +242,28 @@ class Runner:
         for address in new_tokens:
             self.__tokens[address].extend(new_tokens[address])
 
-    def list_jobs(self, max_iterations=1) -> list[tuple[str, Operation, dict[str, Any]]]:
+    def list_jobs(self, max_iterations=1) -> list[tuple[str, Process, dict[str, Any]]]:
         jobs = []
-        for operation in self.__model.operations():
+        for process in self.__model.processes():
             for _ in range(max_iterations):
-                if self.__operation_status[operation.id] is not StatusEnum.ACTIVE:
+                if self.__process_status[process.id] is not StatusEnum.ACTIVE:
                     continue
-                elif any(port.default is None and not self.has_token(address) for address, port in operation.input()):
+                elif any(port.default is None and not self.has_token(address) for address, port in process.input()):
                     continue
                 # pop tokens here
                 input_tokens = [
                     (self.__tokens[address].pop() if self.has_token(address) else Token(address, port.default or {}))  #XXX: port.default can be None
-                    for address, port in operation.input()]
-                job_id = self.__experiment.new_job(operation.asentitydesc(), input_tokens)
-                jobs.append((job_id, operation, {token.address.port_id: token.value for token in input_tokens}))
+                    for address, port in process.input()]
+                job_id = self.__experiment.new_job(process.asentitydesc(), input_tokens)
+                jobs.append((job_id, process, {token.address.port_id: token.value for token in input_tokens}))
 
-                # IOOperation fires only once.
-                if issubclass(operation.type, IOOperation):
-                    self.deactivate(operation.id)
+                # IOProcess fires only once.
+                if issubclass(process.type, IOProcess):
+                    self.deactivate(process.id)
         return jobs
 
-    def complete_job(self, job_id: str, operation: EntityDescription, outputs: dict[str, Any]) -> None:
-        output_tokens = [Token(PortAddress(operation.id, key), value) for key, value in outputs.items()]
+    def complete_job(self, job_id: str, process: EntityDescription, outputs: dict[str, Any]) -> None:
+        output_tokens = [Token(PortAddress(process.id, key), value) for key, value in outputs.items()]
         self.__experiment.complete_job(job_id, output_tokens)
         for token in output_tokens:
             self.__tokens[token.address].append(token)
@@ -284,8 +284,8 @@ class Runner:
                 else:
                     input_outputs[address.port_id] = port.default.copy()
 
-        input_operation = EntityDescription("input", "IOOperation")
-        self.complete_job(self.__experiment.new_job(input_operation, []), input_operation, input_outputs)
+        input_process = EntityDescription("input", "IOProcess")
+        self.complete_job(self.__experiment.new_job(input_process, []), input_process, input_outputs)
         self.activate_all()
 
         while self.num_tokens() > 0:
@@ -299,7 +299,7 @@ class Runner:
             raise RuntimeError("Never get here.")
 
         output_tokens = [self.__tokens[address].pop() for address, _ in self.model.output()]
-        output_operation = EntityDescription("output", "IOOperation")
+        output_operation = EntityDescription("output", "IOProcess")
         self.complete_job(self.__experiment.new_job(output_operation, output_tokens), output_operation, {})
         experiment, self.__experiment = self.__experiment, Experiment()
         assert len(experiment.running()) == 0, f"Running job(s) remained [{len(experiment.running())}]."

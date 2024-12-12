@@ -5,7 +5,7 @@ from logging import getLogger
 import itertools
 from collections import defaultdict
 
-from .entity_type import TypeManager, Operation
+from .entity_type import TypeManager, Process
 from .definitions import Definitions
 from .protocol import Protocol
 
@@ -18,7 +18,7 @@ def check_protocol(protocol: Protocol, definitions: Definitions | None = None) -
     check_connection_port_exists(protocol)
 
     if definitions is not None:
-        check_operation_types(protocol, definitions)
+        check_process_types(protocol, definitions)
         check_port_types(protocol, definitions)
 
 def check_default(protocol: Protocol) -> None:
@@ -49,7 +49,7 @@ def check_unique_id(protocol: Protocol) -> None:
             is_valid = False
 
     id_list = ["input", "output"]
-    for entity in protocol.operations():
+    for entity in protocol.processes():
         if entity.id not in id_list:
             id_list.append(entity.id)
         else:
@@ -60,17 +60,17 @@ def check_unique_id(protocol: Protocol) -> None:
 
 def check_connection_port_exists(protocol: Protocol) -> None:
     id_list = ["input", "output"]
-    for entity in protocol.operations():
+    for entity in protocol.processes():
         if entity.id not in id_list:
             id_list.append(entity.id)
 
     is_valid = True
     for connection in protocol.connections():
-        if connection.input.operation_id not in id_list:
-            logger.error(f"Id [{connection.input.operation_id}] does not exist.")
+        if connection.input.process_id not in id_list:
+            logger.error(f"Id [{connection.input.process_id}] does not exist.")
             is_valid = False
-        if connection.output.operation_id not in id_list:
-            logger.error(f"Id [{connection.output.operation_id}] does not exist.")
+        if connection.output.process_id not in id_list:
+            logger.error(f"Id [{connection.output.process_id}] does not exist.")
             is_valid = False
 
     assert is_valid, "Invalid connection."
@@ -93,7 +93,7 @@ def check_definitions(definitions: Definitions) -> None:
             is_valid = False
 
     for definition in definitions:
-        if definition['ref'] != "Operation" and definition['ref'] != "IOOperation":  #XXX
+        if definition['ref'] != "Process" and definition['ref'] != "IOProcess":  #XXX
             continue
         for key in ("input", "output"):
             if key not in definition:
@@ -118,60 +118,60 @@ def check_definitions(definitions: Definitions) -> None:
 
     assert is_valid, "Invalid definitions."
 
-def check_operation_types(protocol: Protocol, definitions: Definitions) -> None:
+def check_process_types(protocol: Protocol, definitions: Definitions) -> None:
     type_manager = TypeManager(definitions)
 
     is_valid = True
-    operation_types = {}
-    for entity in protocol.operations():
+    process_types = {}
+    for entity in protocol.processes():
         if not definitions.has(entity.type):
-            logger.error(f"Unknown operation type [{entity.type}].")
+            logger.error(f"Unknown process type [{entity.type}].")
             is_valid = False
             continue
 
         assert type_manager.has_definition(entity.type)
         entity_type =  type_manager.eval_primitive_type(entity.type)
-        if not issubclass(entity_type, Operation):
-            logger.error(f"[{entity.type}] is not Operation.")
+        if not issubclass(entity_type, Process):
+            logger.error(f"[{entity.type}] is not Process.")
             is_valid = False
             continue
 
         definition = definitions.get_by_name(entity.type)
-        operation_types[entity.id] = definition
+        process_types[entity.id] = definition
 
     for connection in protocol.connections():
-        if connection.input.operation_id in operation_types:
-            for port in operation_types[connection.input.operation_id].get("output", []):
+        if connection.input.process_id in process_types:
+            for port in process_types[connection.input.process_id].get("output", []):
                 if connection.input.port_id == port["id"]:
                     break
             else:
                 logger.error(f"Unknown port [{connection.input}].")
                 is_valid = False
         else:
-            assert connection.input.operation_id == "input"
+            assert connection.input.process_id == "input"
 
-        if connection.output.operation_id in operation_types:
-            for port in operation_types[connection.output.operation_id].get("input", []):
+        if connection.output.process_id in process_types:
+            for port in process_types[connection.output.process_id].get("input", []):
                 if connection.output.port_id == port["id"]:
                     break
             else:
                 logger.error(f"Unknown port [{connection.output}].")
                 is_valid = False
         else:
-            assert connection.output.operation_id == "output"
+            assert connection.output.process_id == "output"
 
-    assert is_valid, "Invalid operation type."
+    assert is_valid, "Invalid process type."
 
 def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
     type_manager = TypeManager(definitions)
 
     is_valid = True
 
-    operation_types = {}
-    for entity, operation_dict in protocol.operations_with_dict():
+    process_types = {}
+    for entity, process_dict in protocol.processes_with_dict():
         definition = definitions.get_by_name(entity.type)
         port_defaults = {}
-        for port_default in operation_dict.get("input", ()):
+        for port_default in process_dict.get("input", ()):
             assert "id" in port_default
             assert "type" in port_default
             assert "value" in port_default
@@ -189,7 +189,7 @@ def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
                 logger.error(f"No corresponding port found for the given default [{(entity.id, port_id)}]")
             is_valid = False
 
-        operation_types[entity.id] = definition
+        process_types[entity.id] = definition
 
         for port in definition.get("input", ()):
             cnt = 0
@@ -217,28 +217,28 @@ def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
     port_types = {}
     connection_counts = defaultdict(list)
     for connection in protocol.connections():
-        if connection.input.operation_id in operation_types:
-            for port in operation_types[connection.input.operation_id].get("output", []):
+        if connection.input.process_id in process_types:
+            for port in process_types[connection.input.process_id].get("output", []):
                 if connection.input.port_id == port["id"]:
                     port_types[connection.input] = port["type"]
                     input_port = port["type"]
                     break
         else:
-            assert connection.input.operation_id == "input"
+            assert connection.input.process_id == "input"
             for port in protocol.input():
                 if port.id == connection.input.port_id:
                     port_types[connection.input] = port.type
                     input_port = port.type
                     break
 
-        if connection.output.operation_id in operation_types:
-            for port in operation_types[connection.output.operation_id].get("input", []):
+        if connection.output.process_id in process_types:
+            for port in process_types[connection.output.process_id].get("input", []):
                 if connection.output.port_id == port["id"]:
                     port_types[connection.output] = port["type"]
                     output_port = port["type"]
                     break
         else:
-            assert connection.output.operation_id == "output"
+            assert connection.output.process_id == "output"
             for port in protocol.output():
                 if port.id == connection.output.port_id:
                     port_types[connection.output] = port.type

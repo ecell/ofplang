@@ -20,7 +20,7 @@ class EntityDescription:
     type: str
 
 class PortAddress(NamedTuple):
-    operation_id: str
+    process_id: str
     port_id: str
 
 @dataclasses.dataclass
@@ -79,11 +79,11 @@ class Protocol:
     def output(self) -> Iterator[Port]:
         return (Port(**value) for value in self.__data.get("output", ()))
 
-    def operations(self) -> Iterator[EntityDescription]:
-        return (EntityDescription(id=value["id"], type=value["type"]) for value in self.__data.get("operations", ()))
+    def processes(self) -> Iterator[EntityDescription]:
+        return (EntityDescription(id=value["id"], type=value["type"]) for value in self.__data.get("processes", ()))
 
-    def operations_with_dict(self) -> Iterator[tuple[EntityDescription, dict]]:
-        return ((EntityDescription(id=value["id"], type=value["type"]), deepcopy(value)) for value in self.__data.get("operations", ()))
+    def processes_with_dict(self) -> Iterator[tuple[EntityDescription, dict]]:
+        return ((EntityDescription(id=value["id"], type=value["type"]), deepcopy(value)) for value in self.__data.get("processes", ()))
 
     def connections(self) -> Iterator[PortConnection]:
         return (
@@ -96,13 +96,13 @@ class Protocol:
 
         g = graphviz.Digraph(format='png', graph_attr={'dpi': "300"})
 
-        for operation in self.operations():
-            g.node(operation.id)
+        for process in self.processes():
+            g.node(process.id)
 
         for connection in self.connections():
             attributes = {"headlabel": connection.output.port_id, "taillabel": connection.input.port_id}
             g.edge(
-                connection.input.operation_id, connection.output.operation_id,
+                connection.input.process_id, connection.output.process_id,
                 _attributes=attributes)
 
         g.render(outfile=filename)
