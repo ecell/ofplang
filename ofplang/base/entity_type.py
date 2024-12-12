@@ -64,7 +64,8 @@ class TypeManager:
         return entity_type
 
     def eval_entity_type(self, expression: str) -> type:
-        new_type = eval(expression, {"__builtins__": None}, self.__primitive_types)
+        # new_type = eval(expression, {"__builtins__": None}, self.__primitive_types)
+        new_type = eval(expression, self.__primitive_types, {})
         check_entity_type(new_type)
         return new_type
 
