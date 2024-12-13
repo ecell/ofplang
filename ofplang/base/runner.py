@@ -13,6 +13,7 @@ from enum import IntEnum, auto
 from .protocol import PortAddress, Port, Protocol, PortConnection, EntityDescription
 from .definitions import Definitions
 from .entity_type import TypeManager, IOProcess
+from .executor import Executor
 from . import entity_type
 from .validate import check_definitions, check_protocol
 
@@ -159,51 +160,9 @@ class Experiment:
     def running(self) -> ValuesView[Job]:
         return self.__running_jobs.values()
 
-class OperationNotSupportedError(RuntimeError):
-    pass
-
-class ExecutorBase:
-
-    def initialize(self) -> None:
-        pass
-
-    def __call__(self, runner: "Runner", jobs: Iterable[tuple[str, EntityDescription, dict]]) -> None:
-        raise NotImplementedError()
-
-# class _Preprocessor:
-
-#     def __init__(self, runner: "Runner", jobs: list[tuple[str, Process, dict]]) -> None:
-#         self.__runner = runner
-#         self.__jobs = jobs
-
-#     def __iter__(self) -> Iterator[tuple[str, EntityDescription, dict]]:
-#         for job_id, process, inputs in self.__jobs:
-#             if issubclass(process.type, BuiltinProcess):
-#                 outputs = self.execute(job_id, process, inputs)
-#                 self.__runner.complete_job(job_id, process.asentitydesc(), outputs)
-#             else:
-#                 yield (job_id, process.asentitydesc(), inputs)
-
-#     def execute(self, job_id: str, process: Process, inputs: dict) -> dict:
-#         outputs: dict = {}
-#         if issubclass(process.type, RunScript):
-#             script = inputs["script"]["value"]
-#             localdict = {key: value["value"] for key, value in inputs.items() if key != "script"}
-#             exec(script, {}, localdict)  #XXX: Not safe
-#             for _, port in process.output():
-#                 assert port.id in localdict, f"No output for [{port.id}]"
-#             outputs = {port.id: {"value": localdict[port.id], "type": port.type} for _, port in process.output()}
-#         elif process.asentitydesc().type == "SpotArrayFromLabware":
-#             indices = inputs["indices"]["value"]
-#             assert ((0 <= indices) & (indices < 96)).all()
-#             outputs = {"out1": {"value": {"id": inputs["in1"]["value"]["id"], "indices": indices}, "type": "SpotArray"}}
-#         else:
-#             raise ProcessNotSupportedError(f"Undefined process given [{process.asentitydesc().id}, {process.asentitydesc().type}].")
-#         return outputs
-
 class Runner:
 
-    def __init__(self, protocol: str | Protocol, definitions: str | Definitions, executor: ExecutorBase | None = None) -> None:
+    def __init__(self, protocol: str | Protocol, definitions: str | Definitions, executor: Executor | None = None) -> None:
         definitions = definitions if isinstance(definitions, Definitions) else Definitions(definitions)
         protocol = protocol if isinstance(protocol, Protocol) else Protocol(protocol)
 
@@ -215,11 +174,11 @@ class Runner:
         self.__experiment: Experiment = Experiment()
 
     @property
-    def executor(self) -> ExecutorBase | None:
+    def executor(self) -> Executor | None:
         return self.__executor
 
     @executor.setter
-    def executor(self, func: ExecutorBase) -> None:
+    def executor(self, func: Executor) -> None:
         self.__executor = func
 
     def activate_all(self) -> None:
@@ -268,7 +227,7 @@ class Runner:
         for token in output_tokens:
             self.__tokens[token.address].append(token)
 
-    def run(self, inputs: dict, *, executor: ExecutorBase | None = None) -> Experiment:
+    def run(self, inputs: dict, *, executor: Executor | None = None) -> Experiment:
         executor = executor or self.__executor
         assert executor is not None
 
@@ -325,7 +284,7 @@ def run(
         inputs: dict,
         protocol: Protocol | str | pathlib.Path | IO,
         definitions: Definitions | str | pathlib.Path | IO,
-        executor: ExecutorBase) -> dict:
+        executor: Executor) -> dict:
     if not isinstance(definitions, Definitions):
         definitions = Definitions(definitions)
     check_definitions(definitions)

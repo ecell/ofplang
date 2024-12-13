@@ -7,7 +7,8 @@ from dataclasses import dataclass, field
 from collections import defaultdict
 import numpy
 
-from ..base.runner import OperationNotSupportedError, Model
+from ..base.executor import OperationNotSupportedError
+from ..base.runner import Model
 from ..base.protocol import EntityDescription
 
 from .builtin import BuiltinExecutor
