@@ -4,13 +4,13 @@
 - name: Unit
   ref: String
 - name: ServePlate96
-  ref: IOOperation
+  ref: IOProcess
   description: Provide an empty 96-well plate.
   output:
     - id: value
       type: Plate96
 - name: StoreLabware
-  ref: IOOperation
+  ref: IOProcess
   description: Store the 96-well plate in the designated location. Or simply discard.
   input:
     - id: in1
@@ -21,7 +21,7 @@
         value: ""
         type: String
 - name: LabwareToSpotArray
-  ref: BuiltinOperation
+  ref: BuiltinProcess
   description: ""
   input:
     - id: in1
@@ -32,7 +32,7 @@
     - id: out1
       type: SpotArray
 - name: DispenseLiquid96Wells
-  ref: Operation
+  ref: Process
   description: Dispense liquid into the 96-well plate.
   input:
     - id: in1
@@ -53,7 +53,7 @@
     - id: out1
       type: Plate96
 - name: ReadAbsorbance3Colors
-  ref: Operation
+  ref: Process
   description: Measure the absorbance of the 96-well plate.
   input:
     - id: in1

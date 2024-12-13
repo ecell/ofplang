@@ -54,6 +54,9 @@ class Protocol:
 
     def __load(self, file: IO) -> None:
         self.__data = yaml.load(file, Loader=yaml.Loader)
+        if "contents" not in self.__data:
+            raise ValueError("'contents' is required in a protocol.")
+        self.__contents = self.__data["contents"]
 
     def save(self, file: str | pathlib.Path | IO) -> None:
         if isinstance(file, str):
@@ -74,21 +77,21 @@ class Protocol:
         yaml.dump(self.__data, file)
 
     def input(self) -> Iterator[Port]:
-        return (Port(**value) for value in self.__data.get("input", ()))
+        return (Port(**value) for value in self.__contents.get("input", ()))
 
     def output(self) -> Iterator[Port]:
-        return (Port(**value) for value in self.__data.get("output", ()))
+        return (Port(**value) for value in self.__contents.get("output", ()))
 
     def processes(self) -> Iterator[EntityDescription]:
-        return (EntityDescription(id=value["id"], type=value["type"]) for value in self.__data.get("processes", ()))
+        return (EntityDescription(id=value["id"], type=value["type"]) for value in self.__contents.get("processes", ()))
 
     def processes_with_dict(self) -> Iterator[tuple[EntityDescription, dict]]:
-        return ((EntityDescription(id=value["id"], type=value["type"]), deepcopy(value)) for value in self.__data.get("processes", ()))
+        return ((EntityDescription(id=value["id"], type=value["type"]), deepcopy(value)) for value in self.__contents.get("processes", ()))
 
     def connections(self) -> Iterator[PortConnection]:
         return (
             PortConnection(input=PortAddress(*value["input"]), output=PortAddress(*value["output"]))
-            for value in self.__data.get("connections", ())
+            for value in self.__contents.get("connections", ())
             )
 
     def graph(self, filename: str) -> None:
