@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger
 
-from collections.abc import Iterable
-
-from ..base.runner import Runner, Model
+from ..base.runner import Model
 from ..base.executor import ExecutorBase, OperationNotSupportedError
 from ..base.protocol import EntityDescription
 
