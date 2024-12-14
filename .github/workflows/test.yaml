@@ -16,6 +16,6 @@ jobs:
         pip install poetry
         poetry install
     - name: Test ruff
-      run: poetry run ruff check ofplang
+      run: poetry run ruff check src/ofplang
     - name: Test mypy
-      run: poetry run mypy ofplang
+      run: poetry run mypy src/ofplang
