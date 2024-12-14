@@ -1,0 +1,21 @@
+---
+name: test
+
+on: push
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    - name: Make poetry environment
+      run: |
+        pip install poetry
+        poetry install
+    - name: Test ruff
+      run: poetry run ruff check ofplang
+    - name: Test mypy
+      run: poetry run mypy ofplang
