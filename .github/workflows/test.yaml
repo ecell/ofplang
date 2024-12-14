@@ -19,3 +19,5 @@ jobs:
       run: poetry run ruff check src/ofplang
     - name: Test mypy
       run: poetry run mypy src/ofplang
+    - name: Test pytest
+      run: poetry run pytest -v tests

@@ -47,7 +47,7 @@ class Protocol:
         elif isinstance(file, pathlib.Path):
             with file.open() as f:
                 self.__load(f)
-        elif isinstance(file, IO):
+        elif isinstance(file, io.IOBase):
             self.__load(file)
         else:
             raise TypeError(f"Invalid type [{type(file)}]")

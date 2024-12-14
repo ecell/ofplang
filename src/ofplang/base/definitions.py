@@ -6,6 +6,7 @@ import pathlib
 import yaml  # type: ignore
 from copy import deepcopy
 from typing import IO
+import io
 
 logger = getLogger(__name__)
 
@@ -24,7 +25,7 @@ class Definitions:
         elif isinstance(file, pathlib.Path):
             with file.open() as f:
                 self.__load(f, key)
-        elif isinstance(file, IO):
+        elif isinstance(file, io.IOBase):
             self.__load(file, key)
         else:
             raise TypeError(f"Invalid type [{type(file)}]")
