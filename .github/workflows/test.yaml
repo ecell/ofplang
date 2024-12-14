@@ -15,5 +15,7 @@ jobs:
       run: |
         pip install poetry
         poetry install
-    - name: Run pytest
+    - name: Test ruff
       run: poetry run ruff check ofplang
+    - name: Test mypy
+      run: poetry run mypy ofplang
