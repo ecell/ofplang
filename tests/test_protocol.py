@@ -1,9 +1,12 @@
-from ofplang.prelude import *
-from ofplang.base.validate import check_definitions
-
 import io
+from ofplang.prelude import *
+from ofplang.base.validate import check_definitions, check_protocol
 
-def test_definitions():
+import pytest
+
+
+@pytest.fixture
+def init_definitions():
     definitions = Definitions(io.StringIO("""
         - name: Plate96
           ref: Labware
@@ -71,4 +74,18 @@ def test_definitions():
             - id: value
               type: Spread[Array[Float]]
         """))
-    check_definitions(definitions)
+    return definitions
+
+def test_definitions(init_definitions):
+    check_definitions(init_definitions)
+
+def test_protocol1(init_definitions):
+    protocol = Protocol(io.StringIO("""
+        name: test1
+        contents:
+          input: []
+          output: []
+          processes: []
+          connections: []
+        """))
+    check_protocol(protocol, init_definitions)
