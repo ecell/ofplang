@@ -63,3 +63,27 @@
       type: Plate96
     - id: value
       type: Spread[Array[Float]]
+- name: Sleep
+  ref: Process
+  description: Sleep.
+  input:
+    - id: in1
+      type: Plate96
+    - id: duration
+      type: Float
+  output:
+    - id: out1
+      type: Plate96
+- name: WaitFor
+  ref: Process
+  description: Wait for two plates.
+  input:
+    - id: in1
+      type: Plate96
+    - id: in2
+      type: Plate96
+  output:
+    - id: out1
+      type: Plate96
+    - id: out2
+      type: Plate96

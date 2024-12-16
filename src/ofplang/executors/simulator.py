@@ -5,6 +5,7 @@ from logging import getLogger
 import uuid
 from dataclasses import dataclass, field
 from collections import defaultdict
+import time
 import numpy
 
 from ..base.executor import OperationNotSupportedError
@@ -66,6 +67,13 @@ class SimulatorBase(BuiltinExecutor):
                 self.get_plate(plate_id).contents[channel] += volume
                 self.__liquids[channel] += sum(volume)
                 outputs["out1"] = inputs["in1"]
+            elif operation.type == "Sleep":
+                duration = inputs["duration"]["value"]
+                time.sleep(duration)
+                outputs["out1"] = inputs["in1"]
+            elif operation.type == "WaitFor":
+                outputs["out1"] = inputs["in1"]
+                outputs["out2"] = inputs["in2"]
             else:
                 raise err
         return outputs

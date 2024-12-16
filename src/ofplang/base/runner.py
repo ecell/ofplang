@@ -222,6 +222,7 @@ class Runner:
         return jobs
 
     def complete_job(self, job_id: str, process: EntityDescription, outputs: dict[str, Any]) -> None:
+        print(f"complete_job {job_id} {process.type}")
         output_tokens = [Token(PortAddress(process.id, key), value) for key, value in outputs.items()]
         self.__experiment.complete_job(job_id, output_tokens)
         for token in output_tokens:
@@ -251,6 +252,7 @@ class Runner:
             self.transmit_token()
             jobs = self.list_jobs()
             # executor(self, _Preprocessor(self, jobs))
+            for job in jobs: print(f"execute {job[0]} {job[1].type}")
             executor(self, ((job[0], job[1].asentitydesc(), job[2]) for job in jobs))
             if all(self.has_token(address) for address, _ in self.model.output()):
                 break
