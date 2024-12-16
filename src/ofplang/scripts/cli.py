@@ -3,10 +3,12 @@
 from logging import getLogger
 import sys
 import pathlib
+import json
+import contextlib
+
 import numpy
 import yaml
 import click
-import json
 
 from ofplang.prelude import Runner
 from ofplang.executors import Simulator
@@ -34,7 +36,8 @@ def cli() -> None:
 @click.option("--definitions", "-d", help="The definition YAML file", default=None)
 @click.option("--cli-input-yaml", default=None)
 @click.option("--format", default="json")
-def run(protocol: str, definitions: str | None, cli_input_yaml: str | None, format: str) -> None:
+@click.option("--output", "-o", default=None)
+def run(protocol: str, definitions: str | None, cli_input_yaml: str | None, format: str, output: str | None) -> None:
     logger.debug(f"Run protocol [{protocol}] with definitions [{definitions}]")
 
     if definitions is None:
@@ -52,11 +55,12 @@ def run(protocol: str, definitions: str | None, cli_input_yaml: str | None, form
     outputs = runner.run(inputs).output
     logger.debug(f"Output value: {outputs}")
 
-    if format.lower() == "yaml":
-        yaml.dump(outputs, sys.stdout, indent=2)
-    else:
-        # assert format.lower() == "json", format
-        json.dump(outputs, sys.stdout, cls=NumpyEncoder, indent=2)
+    with contextlib.nullcontext(sys.stdout) if output is None else pathlib.Path(output).open('w') as f:
+        if format.lower() == "yaml":
+            yaml.dump(outputs, f, indent=2)
+        else:
+            # assert format.lower() == "json", format
+            json.dump(outputs, f, cls=NumpyEncoder, indent=2)
 
 def main() -> None:
     cli()
