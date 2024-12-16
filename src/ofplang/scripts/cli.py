@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger
 import pathlib
-from typing import IO
 import yaml
 import click
 
-from ofplang.prelude import *
+from ofplang.prelude import Runner
 from ofplang.executors import Simulator
 
 logger = getLogger(__name__)
