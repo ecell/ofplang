@@ -16,12 +16,12 @@ logger = getLogger(__name__)
 
 class TecanFluentController(SimulatorBase):
 
-    def execute(self, model: Model, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+    async def execute(self, model: 'Model', operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         assert outputs_training is None, "'teach' is not supported."
         from . import tecan
 
         try:
-            outputs = super().execute(model, operation, inputs, outputs_training)
+            outputs = await super().execute(model, operation, inputs, outputs_training)
         except OperationNotSupportedError as err:
             outputs = {}
             if operation.type == "ReadAbsorbance3Colors":

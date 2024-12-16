@@ -11,9 +11,9 @@ logger = getLogger(__name__)
 
 class BuiltinExecutor(ExecutorBase):
 
-    def execute(self, model: Model, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+    async def execute(self, model: 'Model', operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         try:
-            outputs = super().execute(model, operation, inputs, outputs_training)
+            outputs = await super().execute(model, operation, inputs, outputs_training)
         except OperationNotSupportedError as err:
             outputs = {}
             if operation.type == "LabwareToSpotArray":

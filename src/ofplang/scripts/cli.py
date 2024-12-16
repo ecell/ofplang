@@ -5,6 +5,7 @@ import sys
 import pathlib
 import json
 import contextlib
+import asyncio
 
 import numpy
 import yaml
@@ -52,7 +53,7 @@ def run(protocol: str, definitions: str | None, cli_input_yaml: str | None, form
         inputs = {}
 
     logger.debug(f"Input value: {inputs}")
-    outputs = runner.run(inputs).output
+    outputs = asyncio.run(runner.run(inputs)).output
     logger.debug(f"Output value: {outputs}")
 
     with contextlib.nullcontext(sys.stdout) if output is None else pathlib.Path(output).open('w') as f:

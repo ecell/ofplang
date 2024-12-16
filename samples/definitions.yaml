@@ -74,7 +74,7 @@
   output:
     - id: out1
       type: Plate96
-- name: WaitFor
+- name: Gather
   ref: Process
   description: Wait for two plates.
   input:

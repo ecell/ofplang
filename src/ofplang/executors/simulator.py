@@ -5,7 +5,7 @@ from logging import getLogger
 import uuid
 from dataclasses import dataclass, field
 from collections import defaultdict
-import time
+import asyncio
 import numpy
 
 from ..base.executor import OperationNotSupportedError
@@ -42,11 +42,11 @@ class SimulatorBase(BuiltinExecutor):
     def get_plate(self, plate_id: str) -> Plate96:
         return self.__plates[plate_id]
 
-    def execute(self, model: Model, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+    async def execute(self, model: 'Model', operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         logger.info(f"execute: {(operation, inputs)}")
 
         try:
-            outputs = super().execute(model, operation, inputs, outputs_training)
+            outputs = await super().execute(model, operation, inputs, outputs_training)
         except OperationNotSupportedError as err:
             outputs = {}
             if operation.type == "ServePlate96":
@@ -69,22 +69,21 @@ class SimulatorBase(BuiltinExecutor):
                 outputs["out1"] = inputs["in1"]
             elif operation.type == "Sleep":
                 duration = inputs["duration"]["value"]
-                time.sleep(duration)
+                await asyncio.sleep(duration)
                 outputs["out1"] = inputs["in1"]
-            elif operation.type == "WaitFor":
+            elif operation.type == "Gather":
                 outputs["out1"] = inputs["in1"]
                 outputs["out2"] = inputs["in2"]
             else:
                 raise err
         return outputs
-
 class Simulator(SimulatorBase):
 
-    def execute(self, model: Model, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+    async def execute(self, model: 'Model', operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         assert outputs_training is None, "'teach' is not supported."
 
         try:
-            outputs = super().execute(model, operation, inputs, outputs_training)
+            outputs = await super().execute(model, operation, inputs, outputs_training)
         except OperationNotSupportedError as err:
             outputs = {}
             if operation.type == "ReadAbsorbance3Colors":

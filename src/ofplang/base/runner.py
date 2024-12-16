@@ -9,6 +9,7 @@ from collections import defaultdict, deque, OrderedDict
 from typing import Any, ValuesView, IO
 from collections.abc import Iterable, Iterator, MutableMapping
 from enum import IntEnum, auto
+import asyncio
 
 from .protocol import PortAddress, Port, Protocol, PortConnection, EntityDescription
 from .definitions import Definitions
@@ -228,7 +229,7 @@ class Runner:
         for token in output_tokens:
             self.__tokens[token.address].append(token)
 
-    def run(self, inputs: dict, *, executor: Executor | None = None) -> Experiment:
+    async def run(self, inputs: dict, *, executor: Executor | None = None) -> Experiment:
         executor = executor or self.__executor
         assert executor is not None
 
@@ -248,13 +249,23 @@ class Runner:
         self.complete_job(self.__experiment.new_job(input_process, []), input_process, input_outputs)
         self.activate_all()
 
+        tasks = []
         while self.num_tokens() > 0:
             self.transmit_token()
             jobs = self.list_jobs()
-            # executor(self, _Preprocessor(self, jobs))
-            for job in jobs: print(f"execute {job[0]} {job[1].type}")
-            executor(self, ((job[0], job[1].asentitydesc(), job[2]) for job in jobs))
-            if all(self.has_token(address) for address, _ in self.model.output()):
+
+
+            tasks.extend([asyncio.create_task(executor(self.model, process.asentitydesc(), inputs, job_id)) for job_id, process, inputs in jobs])
+            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for job_done in done:
+                self.complete_job(*job_done.result())
+            tasks = list(pending)
+
+
+            # for job in jobs: print(f"execute {job[0]} {job[1].type}")
+            # executor(self, ((job[0], job[1].asentitydesc(), job[2]) for job in jobs))
+
+            if all(self.has_token(address) for address, _ in self.model.output()) and len(tasks) == 0:
                 break
         else:
             raise RuntimeError("Never get here.")
@@ -297,5 +308,5 @@ def run(
 
     runner = Runner(protocol, definitions)
     runner.executor = executor
-    experiment = runner.run(inputs=inputs)
+    experiment = asyncio.run(runner.run(inputs=inputs))
     return experiment.output
