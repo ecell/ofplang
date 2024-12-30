@@ -1,6 +1,6 @@
 from ofplang.base.definitions import Definitions
-from ofplang.base.protocol import PortAddress, Protocol
-from ofplang.base.runner import Entity, Process
+from ofplang.base.protocol import PortAddress, Protocol, Port, EntityDescription
+from ofplang.base.runner import UntypedProcess
 
 from collections import namedtuple
 from typing import Any, IO
@@ -14,7 +14,7 @@ import yaml
 class ProcessProxy:
 
     def __init__(self, id: str, definition: dict, graph: "ProtocolGraph") -> None:
-        self.__process = Process(Entity(id, definition["name"]), definition)
+        self.__process = UntypedProcess(EntityDescription(id, definition["name"]), definition)
         self.__graph = graph
 
     def __call__(self, *args, **kwargs) -> Any:
@@ -26,7 +26,8 @@ class ProcessProxy:
         for input_address, output_address in connections:
             self.__graph.add_connection(input_address, output_address)
 
-        cls = namedtuple("EntityProxy", [address.port_id for address, port in self.__process.output()])
+        # See https://github.com/python/mypy/issues/848
+        cls = namedtuple("EntityProxy", [address.port_id for address, port in self.__process.output()])  # type: ignore
         ret = cls(**{address.port_id: address for address, port in self.__process.output()})
         # print(self.__process.type, connections, ret)
         return ret
@@ -59,11 +60,11 @@ def generate_process_id_prefix_from_type(type_name: str) -> str:
 
 class ProtocolGraph:
 
-    def __init__(self, definitions: str | Definitions, *, name: str = None, author: str = None, description: str = None) -> None:
+    def __init__(self, definitions: str | Definitions, *, name: str | None = None, author: str | None = None, description: str | None = None) -> None:
         definitions = definitions if isinstance(definitions, Definitions) else Definitions(definitions)
         self.__definitions = definitions
 
-        self.__data = {"contents": {"input": [], "output": [], "processes": [], "connections": []}}
+        self.__data: dict[str, Any] = {"contents": {"input": [], "output": [], "processes": [], "connections": []}}
         self.__contents = self.__data["contents"]
         if name is not None:
             self.__data["name"] = name
@@ -125,9 +126,9 @@ class ProtocolGraph:
             protocol = Protocol(f)
 
         #XXX: Better to use Model?
-        port_types = {}
+        port_types: dict[PortAddress, Port] = {}
         for entity in protocol.processes():
-            process = Process(entity, definitions.get_by_name(entity.type))
+            process = UntypedProcess(entity, definitions.get_by_name(entity.type))
             port_types.update(process.input())
             port_types.update(process.output())
         

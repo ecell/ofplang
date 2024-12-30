@@ -26,7 +26,40 @@ class Entity:
     id: str
     type: type
 
-class Process:
+class UntypedProcess:
+
+    def __init__(self, entity: EntityDescription, definition: dict) -> None:
+        self.__entity = entity
+        self.__definition = definition
+
+    def input(self) -> Iterable[tuple[PortAddress, Port]]:
+        input = {
+            PortAddress(self.__entity.id, port["id"]): Port(**port)
+            for port in self.__definition.get("input", [])}
+        return input.items()
+
+    def output(self) -> Iterable[tuple[PortAddress, Port]]:
+        output = {
+            PortAddress(self.__entity.id, port["id"]): Port(**port)
+            for port in self.__definition.get("output", [])}
+        return output.items()
+
+    def asentitydesc(self) -> EntityDescription:
+        return self.__entity
+
+    @property
+    def id(self) -> str:
+        return self.__entity.id
+
+    @property
+    def type(self) -> str:
+        return self.__entity.type
+
+    @property
+    def definition(self) -> dict:
+        return self.__definition.copy()  # deepcopy
+
+class TypedProcess:
 
     def __init__(self, entity: Entity, definition: dict) -> None:
         self.__entity = entity
@@ -86,15 +119,15 @@ class Model:
                 for port in definition["input"]:
                     if port["id"] in input_defaults:
                         port["default"] = input_defaults[port["id"]]
-            self.__processes[process.id] = Process(Entity(process.id, process_type), definition)
+            self.__processes[process.id] = TypedProcess(Entity(process.id, process_type), definition)
 
-    def get_by_id(self, id: str) -> Process:
+    def get_by_id(self, id: str) -> TypedProcess:
         return self.__processes[id]
 
     def connections(self) -> Iterator[PortConnection]:
         return self.__protocol.connections()
 
-    def processes(self) -> Iterable[Process]:
+    def processes(self) -> Iterable[TypedProcess]:
         return self.__processes.values()
 
     def input(self) -> Iterator[tuple[PortAddress, Port]]:
@@ -202,7 +235,7 @@ class Runner:
         for address in new_tokens:
             self.__tokens[address].extend(new_tokens[address])
 
-    def list_jobs(self, max_iterations=1) -> list[tuple[str, Process, dict[str, Any]]]:
+    def list_jobs(self, max_iterations=1) -> list[tuple[str, TypedProcess, dict[str, Any]]]:
         jobs = []
         for process in self.__model.processes():
             for _ in range(max_iterations):
