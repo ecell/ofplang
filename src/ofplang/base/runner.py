@@ -192,6 +192,9 @@ class Runner:
         assert len(experiment.running()) == 0, f"Running job(s) remained [{len(experiment.running())}]."
         return experiment
 
+    def run_sync(self, inputs: dict, *, executor: Executor | None = None) -> Experiment:
+        return asyncio.run(self.run(inputs, executor=executor))
+
     def _tokens(self):
         print({k: [x.value for x in v] for k, v in self.__tokens.items() if len(v) > 0})
 
@@ -221,5 +224,5 @@ def run(
 
     runner = Runner(protocol, definitions)
     runner.executor = executor
-    experiment = asyncio.run(runner.run(inputs=inputs))
+    experiment = runner.run_sync(inputs=inputs)
     return experiment.output
