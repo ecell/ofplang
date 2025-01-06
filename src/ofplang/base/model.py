@@ -2,15 +2,8 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger
 
-from typing import NamedTuple, IO, Any
 from collections.abc import Iterable, Iterator
-from copy import deepcopy
-import pathlib
-import dataclasses
-import sys
-import io
-import yaml  # type: ignore
-from collections import defaultdict, deque, OrderedDict
+from collections import OrderedDict
 
 from ofplang.base.definitions import Definitions
 from ofplang.base.protocol import EntityDescription, PortAddress, Port, PortConnection, Protocol

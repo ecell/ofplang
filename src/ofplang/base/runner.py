@@ -5,18 +5,17 @@ from logging import getLogger
 import dataclasses
 import pathlib
 import uuid
-from collections import defaultdict, deque, OrderedDict
+from collections import defaultdict, deque
 from typing import Any, ValuesView, IO
-from collections.abc import Iterable, Iterator, MutableMapping
+from collections.abc import MutableMapping
 from enum import IntEnum, auto
 import asyncio
 
-from .protocol import PortAddress, Port, Protocol, PortConnection, EntityDescription
+from .protocol import PortAddress, Protocol, EntityDescription
 from .model import UntypedProcess, UntypedModel
-from .entity_type import TypeManager, IOProcess
+from .entity_type import TypeManager
 from .definitions import Definitions
 from .executor import Executor
-from . import entity_type
 from .validate import check_definitions, check_protocol
 
 logger = getLogger(__name__)
