@@ -3,7 +3,6 @@
 from logging import getLogger
 
 from .protocol import EntityDescription
-from .entity_type import RunScript
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -34,7 +33,7 @@ class ExecutorBase(Executor):
         # logger.info(f"execute: {(operation, inputs)}")
 
         outputs = {}
-        if issubclass(model.get_by_id(operation.id).type, RunScript):
+        if model.issubclass(model.get_by_id(operation.id).type, "RunScript"):
             _operation = model.get_by_id(operation.id)
             script = inputs["script"]["value"]
             localdict = {key: value["value"] for key, value in inputs.items() if key != "script"}

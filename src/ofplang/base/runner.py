@@ -12,8 +12,9 @@ from enum import IntEnum, auto
 import asyncio
 
 from .protocol import PortAddress, Port, Protocol, PortConnection, EntityDescription
-from .definitions import Definitions
+from .model import UntypedProcess, UntypedModel
 from .entity_type import TypeManager, IOProcess
+from .definitions import Definitions
 from .executor import Executor
 from . import entity_type
 from .validate import check_definitions, check_protocol
@@ -21,92 +22,20 @@ from .validate import check_definitions, check_protocol
 logger = getLogger(__name__)
 
 
-@dataclasses.dataclass
-class Entity:
-    id: str
-    type: type
-
-
-class TypedProcess:
-
-    def __init__(self, entity: Entity, definition: dict) -> None:
-        self.__entity = entity
-        self.__definition = definition
-
-    def input(self) -> Iterable[tuple[PortAddress, Port]]:
-        input = {
-            PortAddress(self.__entity.id, port["id"]): Port(**port)
-            for port in self.__definition.get("input", [])}
-        return input.items()
-
-    def output(self) -> Iterable[tuple[PortAddress, Port]]:
-        output = {
-            PortAddress(self.__entity.id, port["id"]): Port(**port)
-            for port in self.__definition.get("output", [])}
-        return output.items()
-
-    def asentity(self) -> Entity:
-        return self.__entity
-
-    def asentitydesc(self) -> EntityDescription:
-        return EntityDescription(self.__entity.id, self.__definition["name"])
-
-    @property
-    def id(self) -> str:
-        return self.__entity.id
-
-    @property
-    def type(self) -> type:
-        return self.__entity.type
-
-    @property
-    def definition(self) -> dict:
-        return self.__definition.copy()  # deepcopy
-    
-    def is_io(self) -> bool:
-        return issubclass(self.__entity.type, IOProcess)
-
-class Model:
+class Model(UntypedModel):
 
     def __init__(self, protocol: Protocol, definitions: Definitions) -> None:
-        self.__protocol = protocol
-        self.__definitions = definitions
-
         # check inputs
         check_definitions(definitions)
         check_protocol(protocol, definitions)
 
-        self.__type_manager = TypeManager(self.__definitions)
-        self.__load()
-
-    def __load(self) -> None:
-        self.__processes = OrderedDict()
-        for process, process_dict in self.__protocol.processes_with_dict():
-            process_type = self.__type_manager.eval_primitive_type(process.type)
-            assert issubclass(process_type, entity_type.Process), f"[{process.type}] is not Process."
-            definition = self.__definitions.get_by_name(process.type)
-            if "input" in process_dict:
-                input_defaults = {port["id"]: {"value": port["value"], "type": port["type"]} for port in process_dict["input"]}
-                for port in definition["input"]:
-                    if port["id"] in input_defaults:
-                        port["default"] = input_defaults[port["id"]]
-            self.__processes[process.id] = TypedProcess(Entity(process.id, process_type), definition)
-
-    def get_by_id(self, id: str) -> TypedProcess:
-        return self.__processes[id]
-
-    def connections(self) -> Iterator[PortConnection]:
-        return self.__protocol.connections()
-
-    def processes(self) -> Iterable[TypedProcess]:
-        return self.__processes.values()
-
-    def input(self) -> Iterator[tuple[PortAddress, Port]]:
-        #XXX: default?
-        return ((PortAddress("input", port.id), port) for port in self.__protocol.input())
-
-    def output(self) -> Iterator[tuple[PortAddress, Port]]:
-        return ((PortAddress("output", port.id), port) for port in self.__protocol.output())
+        super().__init__(protocol, definitions)
+        self.__type_manager = TypeManager(definitions)
+    
+    def issubclass(self, one: str, another: str) -> bool:
+        return issubclass(
+            self.__type_manager.eval_primitive_type(one),
+            self.__type_manager.eval_primitive_type(another))
 
 @dataclasses.dataclass
 class Token:
@@ -171,6 +100,9 @@ class Runner:
         definitions = definitions if isinstance(definitions, Definitions) else Definitions(definitions)
         protocol = protocol if isinstance(protocol, Protocol) else Protocol(protocol)
 
+        check_definitions(definitions)
+        check_protocol(protocol, definitions)
+
         self.__model = Model(protocol, definitions)
         self.__tokens: MutableMapping[PortAddress, deque[Token]] = defaultdict(deque)
 
@@ -206,7 +138,7 @@ class Runner:
         for address in new_tokens:
             self.__tokens[address].extend(new_tokens[address])
 
-    def list_jobs(self, max_iterations=1) -> list[tuple[str, TypedProcess, dict[str, Any]]]:
+    def list_jobs(self, max_iterations=1) -> list[tuple[str, UntypedProcess, dict[str, Any]]]:
         jobs = []
         for process in self.__model.processes():
             for _ in range(max_iterations):
@@ -222,7 +154,7 @@ class Runner:
                 jobs.append((job_id, process, {token.address.port_id: token.value for token in input_tokens}))
 
                 # IOProcess fires only once.
-                if process.is_io():
+                if self.__model.issubclass(process.type, "IOProcess"):
                     self.deactivate(process.id)
         return jobs
 

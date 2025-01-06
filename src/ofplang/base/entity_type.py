@@ -31,7 +31,7 @@ class TypeManager:
         self.__primitive_types = {
             "Object": Object,
             "Data": Data,
-            "Undefined": Undefined,  #XXX
+            "Undefined": Undefined,
             "Process": Process,
             "Spread": Spread,
             "Optional": Optional,
