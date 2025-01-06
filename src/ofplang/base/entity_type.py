@@ -3,7 +3,7 @@
 from logging import getLogger
 
 from . import definitions
-from ._entity_type import EntityType, Object, Data, Process, Spread, Optional, Array, check_entity_type, is_data, is_object, is_acceptable
+from ._entity_type import EntityType, Undefined, Object, Data, Process, Spread, Optional, Array, check_entity_type, is_data, is_object, is_acceptable
 
 logger = getLogger(__name__)
 
@@ -31,6 +31,7 @@ class TypeManager:
         self.__primitive_types = {
             "Object": Object,
             "Data": Data,
+            "Undefined": Undefined,  #XXX
             "Process": Process,
             "Spread": Spread,
             "Optional": Optional,

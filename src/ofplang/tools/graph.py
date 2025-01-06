@@ -1,6 +1,6 @@
 from ofplang.base.definitions import Definitions
 from ofplang.base.protocol import PortAddress, Protocol, Port, EntityDescription
-from ofplang.base.runner import UntypedProcess
+from ofplang.base.model import UntypedProcess, UntypedModel
 
 from collections import namedtuple
 from typing import Any, IO
@@ -60,6 +60,8 @@ def generate_process_id_prefix_from_type(type_name: str) -> str:
 
 class ProtocolGraph:
 
+    __UNDEFINED = "Undefined"
+
     def __init__(self, definitions: str | Definitions, *, name: str | None = None, author: str | None = None, description: str | None = None) -> None:
         definitions = definitions if isinstance(definitions, Definitions) else Definitions(definitions)
         self.__definitions = definitions
@@ -91,14 +93,14 @@ class ProtocolGraph:
     def has_input(self, id: str) -> bool:
         return any(input["id"] == id for input in self.__contents["input"])
     
-    def add_input(self, id: str, type: str = "") -> None:
-        self.__contents["input"].append({"id": id, "type": type})
+    def add_input(self, id: str, type: str | None = None) -> None:
+        self.__contents["input"].append({"id": id, "type": (type or self.__UNDEFINED)})
 
     def has_output(self, id: str) -> bool:
         return any(input["id"] == id for input in self.__contents["output"])
     
-    def add_output(self, id: str, type: str = "") -> None:
-        self.__contents["output"].append({"id": id, "type": type})
+    def add_output(self, id: str, type: str | None = None) -> None:
+        self.__contents["output"].append({"id": id, "type": (type or self.__UNDEFINED)})
 
     def add_process(self, definition: dict) -> str:
         #XXX: This would be slow in the case with many processes.
@@ -116,8 +118,8 @@ class ProtocolGraph:
     def add_connection(self, input: PortAddress, output: PortAddress) -> None:
         self.__contents["connections"].append({"input": [input.process_id, input.port_id], "output": [output.process_id, output.port_id]})
 
-    @staticmethod
-    def __set_io_types(data: dict, definitions: Definitions) -> dict:
+    @classmethod
+    def __set_io_types(cls, data: dict, definitions: Definitions) -> dict:
         contents = data["contents"]
 
         text = io.StringIO()
@@ -125,27 +127,25 @@ class ProtocolGraph:
         with io.StringIO(text.getvalue()) as f:
             protocol = Protocol(f)
 
-        #XXX: Better to use Model?
+        model = UntypedModel(protocol, definitions)
+
         port_types: dict[PortAddress, Port] = {}
-        for entity in protocol.processes():
-            process = UntypedProcess(entity, definitions.get_by_name(entity.type))
+        for process in model.processes():
             port_types.update(process.input())
             port_types.update(process.output())
         
-        connections = list(protocol.connections())
+        connections = list(model.connections())
         
-        for i, port in enumerate(contents["output"]):
-            if port["type"] == "":
-                address = PortAddress("output", port["id"])
+        for i, (address, port) in enumerate(model.output()):
+            if port.type == cls.__UNDEFINED:
                 partners = [connection.input for connection in connections if connection.output == address]
                 partner_types = [port_types[another] for another in partners]
                 assert len(partner_types) > 0, address
                 #XXX: Do something when multiple partners exists
                 contents["output"][i]["type"] = partner_types[0].type
 
-        for i, port in enumerate(contents["input"]):
-            if port["type"] == "":
-                address = PortAddress("input", port["id"])
+        for i, (address, port) in enumerate(model.input()):
+            if port.type == cls.__UNDEFINED:
                 partners = [connection.output for connection in connections if connection.input == address]
                 partner_types = [port_types[another] for another in partners]
                 assert len(partner_types) > 0, address

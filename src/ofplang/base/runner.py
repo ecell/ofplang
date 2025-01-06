@@ -26,38 +26,6 @@ class Entity:
     id: str
     type: type
 
-class UntypedProcess:
-
-    def __init__(self, entity: EntityDescription, definition: dict) -> None:
-        self.__entity = entity
-        self.__definition = definition
-
-    def input(self) -> Iterable[tuple[PortAddress, Port]]:
-        input = {
-            PortAddress(self.__entity.id, port["id"]): Port(**port)
-            for port in self.__definition.get("input", [])}
-        return input.items()
-
-    def output(self) -> Iterable[tuple[PortAddress, Port]]:
-        output = {
-            PortAddress(self.__entity.id, port["id"]): Port(**port)
-            for port in self.__definition.get("output", [])}
-        return output.items()
-
-    def asentitydesc(self) -> EntityDescription:
-        return self.__entity
-
-    @property
-    def id(self) -> str:
-        return self.__entity.id
-
-    @property
-    def type(self) -> str:
-        return self.__entity.type
-
-    @property
-    def definition(self) -> dict:
-        return self.__definition.copy()  # deepcopy
 
 class TypedProcess:
 
@@ -94,6 +62,9 @@ class TypedProcess:
     @property
     def definition(self) -> dict:
         return self.__definition.copy()  # deepcopy
+    
+    def is_io(self) -> bool:
+        return issubclass(self.__entity.type, IOProcess)
 
 class Model:
 
@@ -251,7 +222,7 @@ class Runner:
                 jobs.append((job_id, process, {token.address.port_id: token.value for token in input_tokens}))
 
                 # IOProcess fires only once.
-                if issubclass(process.type, IOProcess):
+                if process.is_io():
                     self.deactivate(process.id)
         return jobs
 

@@ -14,6 +14,7 @@ class EntityType(type): pass
 
 class Object(EntityType): pass
 class Data(EntityType): pass
+class Undefined(EntityType): pass
 
 class Process(EntityType): pass  #XXX
 
