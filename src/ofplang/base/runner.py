@@ -12,29 +12,12 @@ from enum import IntEnum, auto
 import asyncio
 
 from .protocol import PortAddress, Protocol, EntityDescription
-from .model import UntypedProcess, UntypedModel
-from .entity_type import TypeManager
+from .model import UntypedProcess, Model
 from .definitions import Definitions
 from .executor import Executor
-from .validate import check_definitions, check_protocol
 
 logger = getLogger(__name__)
 
-
-class Model(UntypedModel):
-
-    def __init__(self, protocol: Protocol, definitions: Definitions) -> None:
-        # check inputs
-        check_definitions(definitions)
-        check_protocol(protocol, definitions)
-
-        super().__init__(protocol, definitions)
-        self.__type_manager = TypeManager(definitions)
-    
-    def issubclass(self, one: str, another: str) -> bool:
-        return issubclass(
-            self.__type_manager.eval_primitive_type(one),
-            self.__type_manager.eval_primitive_type(another))
 
 @dataclasses.dataclass
 class Token:
@@ -98,9 +81,6 @@ class Runner:
     def __init__(self, protocol: str | Protocol, definitions: str | Definitions, executor: Executor | None = None) -> None:
         definitions = definitions if isinstance(definitions, Definitions) else Definitions(definitions)
         protocol = protocol if isinstance(protocol, Protocol) else Protocol(protocol)
-
-        check_definitions(definitions)
-        check_protocol(protocol, definitions)
 
         self.__model = Model(protocol, definitions)
         self.__tokens: MutableMapping[PortAddress, deque[Token]] = defaultdict(deque)
@@ -235,11 +215,9 @@ def run(
         executor: Executor) -> dict:
     if not isinstance(definitions, Definitions):
         definitions = Definitions(definitions)
-    check_definitions(definitions)
 
     if not isinstance(protocol, Protocol):
         protocol = Protocol(protocol)
-    check_protocol(protocol, definitions)
 
     runner = Runner(protocol, definitions)
     runner.executor = executor

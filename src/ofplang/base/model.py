@@ -8,6 +8,9 @@ from collections import OrderedDict
 from ofplang.base.definitions import Definitions
 from ofplang.base.protocol import EntityDescription, PortAddress, Port, PortConnection, Protocol
 
+from ofplang.base.entity_type import TypeManager
+from ofplang.base.validate import check_definitions, check_protocol
+
 logger = getLogger(__name__)
 
 
@@ -81,3 +84,18 @@ class UntypedModel:
 
     def output(self) -> Iterator[tuple[PortAddress, Port]]:
         return ((PortAddress("output", port.id), port) for port in self.__protocol.output())
+
+class Model(UntypedModel):
+
+    def __init__(self, protocol: Protocol, definitions: Definitions) -> None:
+        # check inputs
+        check_definitions(definitions)
+        check_protocol(protocol, definitions)
+
+        super().__init__(protocol, definitions)
+        self.__type_manager = TypeManager(definitions)
+    
+    def issubclass(self, one: str, another: str) -> bool:
+        return issubclass(
+            self.__type_manager.eval_primitive_type(one),
+            self.__type_manager.eval_primitive_type(another))

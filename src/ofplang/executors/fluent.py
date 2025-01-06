@@ -6,7 +6,7 @@ from typing import Any
 import numpy
 
 from ..base.executor import OperationNotSupportedError
-from ..base.runner import Model
+from ..base.model import Model
 from ..base.protocol import EntityDescription
 
 from .simulator import SimulatorBase

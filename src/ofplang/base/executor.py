@@ -6,7 +6,7 @@ from .protocol import EntityDescription
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .runner import Model
+    from .model import Model
 
 logger = getLogger(__name__)
 

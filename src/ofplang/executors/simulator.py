@@ -9,7 +9,7 @@ import asyncio
 import numpy
 
 from ..base.executor import OperationNotSupportedError
-from ..base.runner import Model
+from ..base.model import Model
 from ..base.protocol import EntityDescription
 
 from .builtin import BuiltinExecutor

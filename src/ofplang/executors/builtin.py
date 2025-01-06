@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger
 
-from ..base.runner import Model
+from ..base.model import Model
 from ..base.executor import ExecutorBase, OperationNotSupportedError
 from ..base.protocol import EntityDescription
 
