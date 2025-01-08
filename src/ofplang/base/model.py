@@ -69,6 +69,9 @@ class UntypedModel:
             process = UntypedProcess(process_desc, definition)
             self.__processes[process.id] = process
 
+    def get_definition_by_name(self, name: str) -> dict:
+        return self.__definitions.get_by_name(name)
+
     def get_by_id(self, id: str) -> UntypedProcess:
         return self.__processes[id]
 
@@ -99,3 +102,6 @@ class Model(UntypedModel):
         return issubclass(
             self.__type_manager.eval_primitive_type(one),
             self.__type_manager.eval_primitive_type(another))
+    
+    def is_acceptable(self, one: str, another: str) -> bool:
+        return self.__type_manager.is_acceptable(one, another)
