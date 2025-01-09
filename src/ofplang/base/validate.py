@@ -88,12 +88,14 @@ def check_definitions(definitions: Definitions) -> None:
         else:
             logger.error(f"'name' [{definition['name']}] already defined.")
             is_valid = False
-        if "ref" not in definition:
-            logger.error(f"'ref' not defined [{definition}].")
+        if "base" not in definition:
+            logger.error(f"'base' not defined [{definition}].")
             is_valid = False
 
     for definition in definitions:
-        if definition['ref'] != "Process" and definition['ref'] != "IOProcess":  #XXX
+        if 'base' not in definition:
+            continue
+        if definition['base'] != "Process" and definition['base'] != "IOProcess":  #XXX
             continue
         for key in ("input", "output"):
             if key not in definition:
@@ -170,6 +172,7 @@ def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
     process_types = {}
     for entity, process_dict in protocol.processes_with_dict():
         definition = definitions.get_by_name(entity.type)
+
         port_defaults = {}
         for port_default in process_dict.get("input", ()):
             assert "id" in port_default

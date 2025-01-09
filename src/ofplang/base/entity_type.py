@@ -51,9 +51,9 @@ class TypeManager:
             }
 
         for x in self.__definitions:
-            name, ref = x["name"], x["ref"]
+            name, base = x["name"], x["base"]
             assert name not in self.__primitive_types, name
-            self.__primitive_types[name] = type(name, (self.__primitive_types[ref], ), {})
+            self.__primitive_types[name] = type(name, (self.__primitive_types[base], ), {})
 
     def has_definition(self, expression: str) -> bool:
         return (expression in self.__primitive_types)
