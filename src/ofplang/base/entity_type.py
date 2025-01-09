@@ -78,3 +78,6 @@ class TypeManager:
 
     def is_acceptable(self, one: str, another: str) -> bool:
         return is_acceptable(self.eval_entity_type(one), self.eval_entity_type(another))
+
+    def issubclass(self, one: str, another: str) -> bool:
+        return issubclass(self.eval_primitive_type(one), self.eval_primitive_type(another))

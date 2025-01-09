@@ -222,7 +222,6 @@ def run(
     if not isinstance(protocol, Protocol):
         protocol = Protocol(protocol)
 
-    runner = Runner(protocol, definitions)
-    runner.executor = executor
+    runner = Runner(protocol, definitions, executor=executor)
     experiment = runner.run_sync(inputs=inputs)
     return experiment.output

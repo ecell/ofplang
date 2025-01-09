@@ -99,9 +99,7 @@ class Model(UntypedModel):
         self.__type_manager = TypeManager(definitions)
     
     def issubclass(self, one: str, another: str) -> bool:
-        return issubclass(
-            self.__type_manager.eval_primitive_type(one),
-            self.__type_manager.eval_primitive_type(another))
+        return self.__type_manager.issubclass(one, another)
     
     def is_acceptable(self, one: str, another: str) -> bool:
         return self.__type_manager.is_acceptable(one, another)

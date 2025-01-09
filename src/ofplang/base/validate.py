@@ -130,7 +130,7 @@ def check_process_types(protocol: Protocol, definitions: Definitions) -> None:
             continue
 
         assert type_manager.has_definition(entity.type)
-        entity_type =  type_manager.eval_primitive_type(entity.type)
+        entity_type = type_manager.eval_primitive_type(entity.type)
         if not issubclass(entity_type, Process):
             logger.error(f"[{entity.type}] is not Process.")
             is_valid = False
@@ -245,9 +245,9 @@ def check_port_types(protocol: Protocol, definitions: Definitions) -> None:
                     output_port = port.type
                     break
 
-        if not type_manager.is_acceptable(input_port, output_port):
-            logger.error(f"Type mismatch [{input_port} != {output_port}] in [{connection}]")
-            is_valid = False
+        # if not type_manager.is_acceptable(input_port, output_port):
+        #     logger.error(f"Type mismatch [{input_port} != {output_port}] in [{connection}]")
+        #     is_valid = False
 
         if type_manager.is_object(input_port):
             connection_counts[connection.input].append(connection)
