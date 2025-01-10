@@ -124,21 +124,28 @@ from ofplang.runner import Runner, ExecutorBase, Experiment, OperationNotSupport
 from ofplang.protocol import EntityDescription
                       
 class TrainBase(SimulatorBase):
-    def __init__(self, definitions, experiments_data, models_info, loss_fn_dict_list, num_epochs, lr=0.001):
+    def __init__(self, definitions, loss_fn_dict_list, num_epochs, lr=0.001):
         self.definitions = definitions
-        self.experiments_data = experiments_data
-        self.models_info = models_info
+        check_definitions(self.definitions)
         self.loss_fn_dict_list = loss_fn_dict_list
         self.num_epochs = num_epochs
         self.lr = lr
-        self.submodels = self._make_submodels()
-        self.optimizer = self._make_optimizer()
+        self.submodels = {}
+        self.optimizer = None
 
-    def _make_submodels(self):
-        submodels = {}
+    def make_submodels(self, models_info):
+        self.models_info = models_info
+        
         for model_info in self.models_info:
-            submodels[model_info["name"]] = model_info["instance"]
-        return submodels
+            name = model_info["name"]
+            instance = model_info["instance"]
+            path = model_info.get("path", None)
+            
+            self.submodels[name] = instance
+            if path:
+                self._load_model_parameters(instance, path)
+            else:
+                instance.apply(self._init_weights)
 
     def _make_optimizer(self):
         return optim.Adam([param for model in self.submodels.values() for param in model.parameters()], lr=self.lr)
@@ -191,17 +198,18 @@ class TrainBase(SimulatorBase):
             if path:
                 self._save_model_parameters(instance, path)
 
-    def select_data(self):
-        return numpy.random.choice(self.experiments_data)
+    def select_data(self, experiments_data):
+        return numpy.random.choice(experiments_data)
     
-    def train(self):
+    def train(self, experiments_data):
         self._load_models_parameters()
+        self.optimizer = self._make_optimizer()
 
         for epoch in range(self.num_epochs):
             self.optimizer.zero_grad()
 
-            selected_data = self.select_data()
-            check_definitions(self.definitions)
+            selected_data = self.select_data(experiments_data)
+
             check_protocol(selected_data["protocol"], self.definitions)
 
             selected_data["protocol"].dump()
@@ -232,7 +240,7 @@ class TrainBase(SimulatorBase):
 
         self._save_models_parameters()
         print("Training complete.")
-        
+
 
 class MyExecutor(TrainBase):
     def execute(self, model: Model, operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
@@ -317,15 +325,13 @@ loss_fn_dict_list = [{"[\"mixed_output\"][\"value\"]": nn.MSELoss()}]
 
 train_instance = MyExecutor(
     definitions=Definitions('./manipulate.yaml'),
-    experiments_data=experiments_data,
-    models_info=models_info,
     loss_fn_dict_list=loss_fn_dict_list,
     num_epochs=10,
     lr=0.001
 )
 
-train_instance.train()
-
+train_instance.make_submodels(models_info)
+train_instance.train(experiments_data)
 
 
 
