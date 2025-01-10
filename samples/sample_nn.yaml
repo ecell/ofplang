@@ -1,0 +1,95 @@
+input:
+  - id: channel_r
+    type: Array[Float]
+  - id: channel_g
+    type: Array[Float]
+  - id: channel_b
+    type: Array[Float]
+
+output:
+  - id: mixed_output
+    type: Array[Float]
+
+operations:
+  # NN1: 各チャンネルの初期処理
+  - id: process_red
+    type: NN1r
+  - id: process_green
+    type: NN1g
+  - id: process_blue
+    type: NN1b
+  
+  # NN2: 混合ステップ
+  - id: mix_two_1
+    type: NN2  # 赤と緑を混合
+  - id: mix_two_2
+    type: NN2  # mix_two_1 と青を混合
+  
+  # NN3: 最終混合結果を計算
+  - id: mix_three
+    type: NN3
+
+connections:
+  # 各チャンネルの入力をそれぞれの NN1 に渡す
+  - input:
+      - input
+      - channel_r
+    output:
+      - process_red
+      - in1
+  - input:
+      - input
+      - channel_g
+    output:
+      - process_green
+      - in1
+  - input:
+      - input
+      - channel_b
+    output:
+      - process_blue
+      - in1
+
+  # NN1r と NN1g の出力を mix_two_1 に渡す
+  - input:
+      - process_red
+      - out1
+    output:
+      - mix_two_1
+      - in1
+  - input:
+      - process_green
+      - out1
+    output:
+      - mix_two_1
+      - in2
+
+  # mix_two_1 の出力と NN1b の出力を mix_two_2 に渡す
+  - input:
+      - mix_two_1
+      - out1
+    output:
+      - mix_two_2
+      - in1
+  - input:
+      - process_blue
+      - out1
+    output:
+      - mix_two_2
+      - in2
+
+  # mix_two_2 の出力を NN3 に渡す
+  - input:
+      - mix_two_2
+      - out1
+    output:
+      - mix_three
+      - in1
+
+  # NN3 の出力を最終出力に渡す
+  - input:
+      - mix_three
+      - out1
+    output:
+      - output
+      - mixed_output

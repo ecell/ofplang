@@ -63,3 +63,58 @@
       type: Plate96
     - id: value
       type: Spread[Array[Float]]
+- name: NeuralNetworkOperation
+  ref: Operation
+  description: Base class for neural network operations.
+
+- name: NN1r
+  ref: NeuralNetworkOperation
+  description: Process one color channel through NN1.
+  input:
+    - id: in1
+      type: Array[Float]
+  output:
+    - id: out1
+      type: Array[Float]
+
+- name: NN1g
+  ref: NeuralNetworkOperation
+  description: Process one color channel through NN1.
+  input:
+    - id: in1
+      type: Array[Float]
+  output:
+    - id: out1
+      type: Array[Float]
+
+- name: NN1b
+  ref: NeuralNetworkOperation
+  description: Process one color channel through NN1.
+  input:
+    - id: in1
+      type: Array[Float]
+  output:
+    - id: out1
+      type: Array[Float]
+
+- name: NN2
+  ref: NeuralNetworkOperation
+  description: Combine and process two channel outputs.
+  input:
+    - id: in1
+      type: Array[Float]
+    - id: in2
+      type: Array[Float]
+  output:
+    - id: out1
+      type: Array[Float]
+
+- name: NN3
+  ref: NeuralNetworkOperation
+  description: Generate the final output by processing the combined channels.
+  input:
+    - id: in1
+      type: Array[Float]
+  output:
+    - id: out1
+      type: Array[Float]
