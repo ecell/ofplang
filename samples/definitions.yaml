@@ -20,23 +20,12 @@
       default:
         value: ""
         type: String
-- name: LabwareToSpotArray
-  base: BuiltinProcess
-  description: ""
-  input:
-    - id: in1
-      type: Labware
-    - id: indices
-      type: Array[Integer]
-  output:
-    - id: out1
-      type: SpotArray
 - name: DispenseLiquid96Wells
   base: Process
   description: Dispense liquid into the 96-well plate.
   input:
     - id: in1
-      type: SpotArray | Plate96
+      type: Plate96
     - id: channel
       type: Integer
       default:
@@ -52,38 +41,59 @@
   output:
     - id: out1
       type: Plate96
+- name: DispenseLiquid96Wells__Optional
+  base: Process
+  description: Dispense liquid into the 96-well plate.
+  input:
+    - id: in1
+      type: Optional[Plate96]
+    - id: channel
+      type: Integer
+      default:
+        value: 0
+        type: Integer
+    - id: volume
+      type: Array[Float]
+    - id: unit
+      type: Unit
+      default:
+        value: microliter
+        type: Unit
+  output:
+    - id: out1
+      type: Optional[Plate96]
 - name: ReadAbsorbance3Colors
   base: Process
   description: Measure the absorbance of the 96-well plate.
   input:
     - id: in1
-      type: SpotArray | Plate96
+      type: Plate96
   output:
     - id: out1
       type: Plate96
     - id: value
       type: Spread[Array[Float]]
-- name: Sleep
-  base: Process
-  description: Sleep.
+- name: Switch
+  base: BuiltinProcess
+  description: Switch if
   input:
     - id: in1
       type: Plate96
-    - id: duration
-      type: Float
+    - id: condition
+      type: Boolean
   output:
     - id: out1
-      type: Plate96
-- name: Gather
-  base: Process
-  description: Wait for two plates.
-  input:
-    - id: in1
-      type: Plate96
-    - id: in2
-      type: Plate96
-  output:
-    - id: out1
-      type: Plate96
+      type: Optional[Plate96]
     - id: out2
+      type: Optional[Plate96]
+- name: Gather
+  base: BuiltinProcess
+  description: Gather optionals
+  input:
+    - id: in1
+      type: Optional[Plate96]
+    - id: in2
+      type: Optional[Plate96]
+  output:
+    - id: out1
       type: Plate96

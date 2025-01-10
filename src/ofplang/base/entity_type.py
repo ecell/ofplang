@@ -11,10 +11,11 @@ logger = getLogger(__name__)
 class Number(Data): pass
 class Float(Number): pass
 class Integer(Number): pass
+class Boolean(Data): pass
 class String(Data): pass
 
 class Labware(Object): pass
-class SpotArray(Labware): pass
+# class SpotArray(Labware): pass
 
 class IOProcess(Process): pass  #XXX
 class BuiltinProcess(Process): pass
@@ -40,10 +41,11 @@ class TypeManager:
             "Number": Number,
             "Float": Float,
             "Integer": Integer,
+            "Boolean": Boolean,
             "String": String,
 
             "Labware": Labware,
-            "SpotArray": SpotArray,
+            # "SpotArray": SpotArray,
 
             "IOProcess": IOProcess,
             "BuiltinProcess": BuiltinProcess,
