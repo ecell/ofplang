@@ -9,18 +9,18 @@ import pytest
 def init_definitions():
     definitions = Definitions(io.StringIO("""
         - name: Plate96
-          ref: Labware
+          base: Labware
           description: A 96-well plate.
         - name: Unit
-          ref: String
+          base: String
         - name: ServePlate96
-          ref: IOProcess
+          base: IOProcess
           description: Provide an empty 96-well plate.
           output:
             - id: value
               type: Plate96
         - name: StoreLabware
-          ref: IOProcess
+          base: IOProcess
           description: Store the 96-well plate in the designated location. Or simply discard.
           input:
             - id: in1
@@ -31,7 +31,7 @@ def init_definitions():
                 value: ""
                 type: String
         - name: LabwareToSpotArray
-          ref: BuiltinProcess
+          base: BuiltinProcess
           description: ""
           input:
             - id: in1
@@ -42,7 +42,7 @@ def init_definitions():
             - id: out1
               type: SpotArray
         - name: DispenseLiquid96Wells
-          ref: Process
+          base: Process
           description: Dispense liquid into the 96-well plate.
           input:
             - id: in1
@@ -63,7 +63,7 @@ def init_definitions():
             - id: out1
               type: Plate96
         - name: ReadAbsorbance3Colors
-          ref: Process
+          base: Process
           description: Measure the absorbance of the 96-well plate.
           input:
             - id: in1
