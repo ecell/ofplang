@@ -5,7 +5,6 @@ from logging import getLogger
 import uuid
 from dataclasses import dataclass, field
 from collections import defaultdict
-import asyncio
 import numpy
 
 from ..base.executor import OperationNotSupportedError
@@ -22,7 +21,7 @@ class Labware:
 
 @dataclass
 class Plate96(Labware):
-    contents: defaultdict[int, numpy.ndarray] = field(default_factory=lambda: defaultdict(lambda: numpy.zeros(96, dtype=float)))
+    contents: defaultdict[str | int, numpy.ndarray] = field(default_factory=lambda: defaultdict(lambda: numpy.zeros(96, dtype=float)))
 
 @dataclass
 class Falcon50(Labware):
@@ -39,7 +38,7 @@ class Deck:
         self.__sites: dict[str, list[str]] = {}
         self.__stackable: dict[str, bool] = {}
 
-    def __getitem__(self, key: str) -> list[Labware]:
+    def __getitem__(self, key: str) -> str:
         #XXX
         return self.__sites[key][-1]
     

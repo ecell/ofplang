@@ -15,7 +15,7 @@ from .builtin import BuiltinExecutor
 
 logger = getLogger(__name__)
 
-OPERATIONS_QUEUED = asyncio.Queue()
+OPERATIONS_QUEUED: 'asyncio.Queue[dict]' = asyncio.Queue()
 
 async def tecan_fluent_operator():
     while True:
@@ -32,8 +32,7 @@ async def execute(future: asyncio.Future, model: 'Model', operation: EntityDescr
     outputs = {}
 
     if operation.type == "ReadAbsorbance3Colors":
-        params: dict[str, Any] = {}
-                
+        params: dict[str, Any] = {}  # noqa: F841
         # (data, ), _ = tecan.read_absorbance_3colors(**params)
         await asyncio.sleep(10)
         data = numpy.zeros(96, dtype=float)
@@ -47,7 +46,7 @@ async def execute(future: asyncio.Future, model: 'Model', operation: EntityDescr
 
         volume = numpy.asarray(volume)
         volume = volume.astype(int)
-        params = {'data': volume, 'channel': channel}
+        params = {'data': volume, 'channel': channel}  # noqa: F841
         # _ = tecan.dispense_liquid_96wells(**params)
         await asyncio.sleep(15)
         outputs["out1"] = inputs["in1"]
