@@ -17,6 +17,7 @@ matplotlib = "^3.9.3"
 click = "^8.1.7"
 
 gpytorch = "^1.13"
+python-dotenv = "^1.0.1"
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.8.3"
 mypy = "^1.13.0"
@@ -24,6 +25,12 @@ pytest-env = "^1.1.5"
 pytest = "^8.3.4"
 
 types-pyyaml = "^6.0.12.20240917"
+[tool.poetry.group.app.dependencies]
+fastapi = "^0.115.8"
+
+discord-py = "^2.4.0"
+uvicorn = "^0.34.0"
+python-multipart = "^0.0.20"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
