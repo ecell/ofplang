@@ -4,7 +4,6 @@ from logging import getLogger
 
 import dataclasses
 import pathlib
-import uuid
 from collections import defaultdict, deque
 from typing import Any, ValuesView, IO
 from collections.abc import MutableMapping
@@ -15,6 +14,7 @@ from .protocol import PortAddress, Protocol, EntityDescription
 from .model import UntypedProcess, Model
 from .definitions import Definitions
 from .executor import Executor
+from .store import Store, FileStore, Handler
 
 logger = getLogger(__name__)
 
@@ -35,7 +35,7 @@ class Job:
     outputs: list[Token] | None
     metadata: dict
 
-class Experiment:
+class Run:
 
     def __init__(self, metadata: dict | None = None) -> None:
         metadata = metadata or {}
@@ -43,9 +43,9 @@ class Experiment:
         self.__running_jobs: dict[str, Job] = {}
         self.__complete_jobs: list[Job] = []
 
-    def new_job(self, operation: EntityDescription, inputs: list[Token], metadata: dict | None = None) -> str:
+    def new_job(self, job_id: str, operation: EntityDescription, inputs: list[Token], metadata: dict | None = None) -> str:
         metadata = metadata or {}
-        job_id = str(uuid.uuid4())
+        # job_id = str(uuid.uuid4())
         self.__running_jobs[job_id] = Job(operation, inputs, None, metadata)
         return job_id
 
@@ -76,9 +76,34 @@ class Experiment:
     def running(self) -> ValuesView[Job]:
         return self.__running_jobs.values()
 
+class RunHandler(Handler):
+
+    def __init__(self) -> None:
+        self.__run: Run | None = None
+
+    @property    
+    def run(self) -> Run:
+        assert self.__run is not None
+        return self.__run
+
+    def create_run(self, id, metadata) -> None:
+        self.__run = Run(metadata={'id': id})
+
+    def create_process(self, id, metadata) -> None:
+        assert self.__run is not None
+        self.__run.new_job(id, EntityDescription(metadata['id'], metadata['base']), metadata['inputs'])
+
+    def create_operation(self, id, metadata) -> None:
+        assert self.__run is not None
+        pass
+
+    def update_process(self, id, metadata) -> None:
+        assert self.__run is not None
+        self.__run.complete_job(id, metadata['outputs'])
+
 class Runner:
 
-    def __init__(self, protocol: str | Protocol, definitions: str | Definitions, executor: Executor | None = None) -> None:
+    def __init__(self, protocol: str | Protocol, definitions: str | Definitions, executor: Executor | None = None, store: Store | None = None) -> None:
         definitions = definitions if isinstance(definitions, Definitions) else Definitions(definitions)
         protocol = protocol if isinstance(protocol, Protocol) else Protocol(protocol)
 
@@ -87,7 +112,9 @@ class Runner:
 
         self.__process_status = {process.id: StatusEnum.INACTIVE for process in self.__model.processes()}
         self.__executor = executor
-        self.__experiment: Experiment = Experiment()
+
+        self.__store = store or FileStore()
+        self.__store.add_handler(RunHandler())
 
     @property
     def executor(self) -> Executor | None:
@@ -129,7 +156,7 @@ class Runner:
                 input_tokens = [
                     (self.__tokens[address].pop() if self.has_token(address) else Token(address, port.default or {}))  #XXX: port.default can be None
                     for address, port in process.input()]
-                job_id = self.__experiment.new_job(process.asentitydesc(), input_tokens)
+                job_id = self.__store.create_process(dict(id=process.id, base=process.type, inputs=input_tokens))
                 jobs.append((job_id, process, {token.address.port_id: token.value for token in input_tokens}))
 
                 # IOProcess fires only once.
@@ -140,15 +167,16 @@ class Runner:
     def complete_job(self, job_id: str, process: EntityDescription, outputs: dict[str, Any]) -> None:
         logger.info(f"complete_job {job_id} {process.type}")
         output_tokens = [Token(PortAddress(process.id, key), value) for key, value in outputs.items()]
-        self.__experiment.complete_job(job_id, output_tokens)
+        self.__store.update_process(job_id, dict(outputs=output_tokens))
         for token in output_tokens:
             self.__tokens[token.address].append(token)
 
-    async def run(self, inputs: dict, *, executor: Executor | None = None) -> Experiment:
+    async def run(self, inputs: dict, *, executor: Executor | None = None) -> Run:
         executor = executor or self.__executor
         assert executor is not None
 
-        self.__experiment = Experiment()
+        _ = self.__store.create_run({})
+
         self.clear_tokens()
         executor.initialize()
 
@@ -161,7 +189,8 @@ class Runner:
                     input_outputs[address.port_id] = port.default.copy()
 
         input_process = EntityDescription("input", "IOProcess")
-        self.complete_job(self.__experiment.new_job(input_process, []), input_process, input_outputs)
+        process_id = self.__store.create_process(dict(id="input", base="IOProcess", inputs=[]))
+        self.complete_job(process_id, input_process, input_outputs)
         self.activate_all()
 
         tasks = []
@@ -185,12 +214,15 @@ class Runner:
 
         output_tokens = [self.__tokens[address].pop() for address, _ in self.model.output()]
         output_operation = EntityDescription("output", "IOProcess")
-        self.complete_job(self.__experiment.new_job(output_operation, output_tokens), output_operation, {})
-        experiment, self.__experiment = self.__experiment, Experiment()
+        process_id = self.__store.create_process(dict(id="output", base="IOProcess", inputs=output_tokens))
+        self.complete_job(process_id, output_operation, {})
+
+        assert isinstance(self.__store.handlers[-1], RunHandler)
+        experiment = self.__store.handlers[-1].run  #XXX:
         assert len(experiment.running()) == 0, f"Running job(s) remained [{len(experiment.running())}]."
         return experiment
 
-    def run_sync(self, inputs: dict, *, executor: Executor | None = None) -> Experiment:
+    def run_sync(self, inputs: dict, *, executor: Executor | None = None) -> Run:
         return asyncio.run(self.run(inputs, executor=executor))
 
     def _tokens(self):
