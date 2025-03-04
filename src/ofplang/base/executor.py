@@ -72,6 +72,10 @@ class ExecutorBase(Executor):
                     pass
             else:
                 raise ProcessNotSupportedError(f"Undefined process given [{process.id}, {process.type}].")
+        # elif process.type == "LabwareToSpotArray":
+        #     indices = inputs["indices"]["value"]
+        #     assert ((0 <= indices) & (indices < 96)).all()
+        #     outputs = {"out1": {"value": {"id": inputs["in1"]["value"]["id"], "indices": indices}, "type": "SpotArray"}}
         else:
             raise ProcessNotSupportedError(f"ExecutorBase only supports BuiltinProcess [{process.id}, {process.type}].")
         return outputs

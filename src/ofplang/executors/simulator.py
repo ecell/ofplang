@@ -7,11 +7,9 @@ from dataclasses import dataclass, field
 from collections import defaultdict
 import numpy
 
-from ..base.executor import ProcessNotSupportedError
+from ..base.executor import ProcessNotSupportedError, ExecutorBase
 from ..base.model import Model
 from ..base.protocol import EntityDescription
-
-from .builtin import BuiltinExecutor
 
 logger = getLogger(__name__)
 
@@ -124,7 +122,7 @@ class DeckSimulator:
         assert isinstance(falcon, Falcon50)
         falcon.contents += volume
 
-class SimulatorBase(BuiltinExecutor):
+class SimulatorBase(ExecutorBase):
 
     def __init__(self) -> None:
         pass

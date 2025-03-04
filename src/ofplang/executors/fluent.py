@@ -6,12 +6,11 @@ from typing import Any
 import numpy
 import asyncio
 
-from ..base.executor import ProcessNotSupportedError
+from ..base.executor import ProcessNotSupportedError, ExecutorBase
 from ..base.model import Model
 from ..base.protocol import EntityDescription
 
 from .simulator import SimulatorBase, DeckSimulator
-from .builtin import BuiltinExecutor
 
 logger = getLogger(__name__)
 
@@ -56,7 +55,7 @@ async def execute(future: asyncio.Future, model: 'Model', process: EntityDescrip
 
     future.set_result(outputs)
 
-class TecanFluentSimulator(BuiltinExecutor):
+class TecanFluentSimulator(ExecutorBase):
 
     def __init__(self) -> None:
         self.__deck = DeckSimulator()
@@ -74,21 +73,24 @@ class TecanFluentSimulator(BuiltinExecutor):
 
         outputs = {}
 
-        if process.type == "ServePlate96":
-            plate_id = self.__deck.new_plate96('7mm Nest_Riken[005]')
-            outputs["value"] = {"value": {"id": plate_id}, "type": "Plate96"}
-        elif process.type == "StoreLabware":
-            self.__deck.remove(inputs["in1"]["value"]["id"])  #XXX
-        else:
-            loop = asyncio.get_running_loop()
-            future = loop.create_future()
-            job = {'future': future, 'model': model, 'process': process, 'inputs': inputs}
-            OPERATIONS_QUEUED.put_nowait(job)
-            outputs = await future
+        try:
+            outputs = await super().execute(model, process, inputs, outputs_training)
+        except ProcessNotSupportedError as err:  # noqa: F841
+            if process.type == "ServePlate96":
+                plate_id = self.__deck.new_plate96('7mm Nest_Riken[005]')
+                outputs["value"] = {"value": {"id": plate_id}, "type": "Plate96"}
+            elif process.type == "StoreLabware":
+                self.__deck.remove(inputs["in1"]["value"]["id"])  #XXX
+            else:
+                loop = asyncio.get_running_loop()
+                future = loop.create_future()
+                job = {'future': future, 'model': model, 'process': process, 'inputs': inputs}
+                OPERATIONS_QUEUED.put_nowait(job)
+                outputs = await future
 
-            if process.type == "DispenseLiquid96Wells":
-                channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
-                self.__deck.dispense_liquid_96wells(f"50ml FalconTube 6pos[{channel+1:03d}]", '7mm Nest_Riken[005]', volume)
+                if process.type == "DispenseLiquid96Wells":
+                    channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
+                    self.__deck.dispense_liquid_96wells(f"50ml FalconTube 6pos[{channel+1:03d}]", '7mm Nest_Riken[005]', volume)
 
         logger.info(f"TecanFluentSimulator.execute => [{process}] [{outputs}]")
         return outputs
