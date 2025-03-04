@@ -145,19 +145,19 @@ class SimulatorBase(BuiltinExecutor):
     def get_plate(self, plate_id: str) -> Plate96:
         return self.__plates[plate_id]
 
-    async def execute(self, model: 'Model', operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
-        logger.info(f"execute: {(operation, inputs)}")
+    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+        logger.info(f"execute: {(process, inputs)}")
 
         try:
-            outputs = await super().execute(model, operation, inputs, outputs_training)
+            outputs = await super().execute(model, process, inputs, outputs_training)
         except OperationNotSupportedError as err:
             outputs = {}
-            if operation.type == "ServePlate96":
+            if process.type == "ServePlate96":
                 plate_id = self.new_plate(None if outputs_training is None else outputs_training["value"]["value"]["id"])
                 outputs["value"] = {"value": {"id": plate_id}, "type": "Plate96"}
-            elif operation.type == "StoreLabware":
+            elif process.type == "StoreLabware":
                 pass
-            elif operation.type in "DispenseLiquid96Wells":
+            elif process.type in "DispenseLiquid96Wells":
                 channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
                 plate_id = inputs["in1"]["value"]["id"]
                 assert len(volume) == 96, f"The length of volume must be 96. [{len(volume)}] was given."
@@ -171,7 +171,7 @@ class SimulatorBase(BuiltinExecutor):
                 self.get_plate(plate_id).contents[channel] += volume
                 self.__liquids[channel] += sum(volume)
                 outputs["out1"] = inputs["in1"]
-            elif operation.type in "DispenseLiquid96Wells__Optional":
+            elif process.type in "DispenseLiquid96Wells__Optional":
                 if inputs["in1"]["value"] is not None:
                     channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
                     plate_id = inputs["in1"]["value"]["id"]
@@ -186,11 +186,11 @@ class SimulatorBase(BuiltinExecutor):
                     self.get_plate(plate_id).contents[channel] += volume
                     self.__liquids[channel] += sum(volume)
                 outputs["out1"] = inputs["in1"]
-            # elif operation.type == "Sleep":
+            # elif process.type == "Sleep":
             #     duration = inputs["duration"]["value"]
             #     await asyncio.sleep(duration)
             #     outputs["out1"] = inputs["in1"]
-            # elif operation.type == "Gather":
+            # elif process.type == "Gather":
             #     outputs["out1"] = inputs["in1"]
             #     outputs["out2"] = inputs["in2"]
             else:
@@ -198,14 +198,14 @@ class SimulatorBase(BuiltinExecutor):
         return outputs
 class Simulator(SimulatorBase):
 
-    async def execute(self, model: 'Model', operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         assert outputs_training is None, "'teach' is not supported."
 
         try:
-            outputs = await super().execute(model, operation, inputs, outputs_training)
+            outputs = await super().execute(model, process, inputs, outputs_training)
         except OperationNotSupportedError as err:
             outputs = {}
-            if operation.type == "ReadAbsorbance3Colors":
+            if process.type == "ReadAbsorbance3Colors":
                 plate_id = inputs["in1"]["value"]["id"]
                 # start = numpy.zeros(96, dtype=float)  # self.get_plate(plate_id).contents.default_factory()
                 # contents = sum(self.get_plate(plate_id).contents.values(), start)

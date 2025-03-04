@@ -179,6 +179,7 @@ class Runner:
 
         self.clear_tokens()
         executor.initialize()
+        executor.set_store(self.__store)
 
         input_outputs = inputs.copy()
         for address, port in self.__model.input():
@@ -189,8 +190,8 @@ class Runner:
                     input_outputs[address.port_id] = port.default.copy()
 
         input_process = EntityDescription("input", "IOProcess")
-        process_id = self.__store.create_process(dict(id="input", base="IOProcess", inputs=[]))
-        self.complete_job(process_id, input_process, input_outputs)
+        job_id = self.__store.create_process(dict(id="input", base="IOProcess", inputs=[]))
+        self.complete_job(job_id, input_process, input_outputs)
         self.activate_all()
 
         tasks = []
@@ -214,8 +215,8 @@ class Runner:
 
         output_tokens = [self.__tokens[address].pop() for address, _ in self.model.output()]
         output_operation = EntityDescription("output", "IOProcess")
-        process_id = self.__store.create_process(dict(id="output", base="IOProcess", inputs=output_tokens))
-        self.complete_job(process_id, output_operation, {})
+        job_id = self.__store.create_process(dict(id="output", base="IOProcess", inputs=output_tokens))
+        self.complete_job(job_id, output_operation, {})
 
         assert isinstance(self.__store.handlers[-1], RunHandler)
         experiment = self.__store.handlers[-1].run  #XXX:

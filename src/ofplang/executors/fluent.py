@@ -25,13 +25,13 @@ async def tecan_fluent_operator():
         await execute(**job)
         OPERATIONS_QUEUED.task_done()
 
-async def execute(future: asyncio.Future, model: 'Model', operation: EntityDescription, inputs: dict) -> None:
-    logger.info(f"execute [{operation.id}] [{operation.type}].")
+async def execute(future: asyncio.Future, model: 'Model', process: EntityDescription, inputs: dict) -> None:
+    logger.info(f"execute [{process.id}] [{process.type}].")
     # from . import tecan
 
     outputs = {}
 
-    if operation.type == "ReadAbsorbance3Colors":
+    if process.type == "ReadAbsorbance3Colors":
         params: dict[str, Any] = {}  # noqa: F841
         # (data, ), _ = tecan.read_absorbance_3colors(**params)
         await asyncio.sleep(10)
@@ -40,7 +40,7 @@ async def execute(future: asyncio.Future, model: 'Model', operation: EntityDescr
         assert inputs["in1"]["type"] == "Plate96"
         outputs["value"] = {"value": data, "type": "Spread[Array[Float]]"}
         outputs["out1"] = inputs["in1"]
-    elif operation.type == "DispenseLiquid96Wells":
+    elif process.type == "DispenseLiquid96Wells":
         channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
         assert len(volume) == 96
 
@@ -51,7 +51,7 @@ async def execute(future: asyncio.Future, model: 'Model', operation: EntityDescr
         await asyncio.sleep(15)
         outputs["out1"] = inputs["in1"]
     else:
-        future.set_exception(OperationNotSupportedError(f"Undefined operation given [{operation.id}, {operation.type}]."))
+        future.set_exception(OperationNotSupportedError(f"Undefined process given [{process.id}, {process.type}]."))
         return
 
     future.set_result(outputs)
@@ -68,42 +68,42 @@ class TecanFluentSimulator(BuiltinExecutor):
         for channel in range(6):
             self.__deck.new_falcon50(f'50ml FalconTube 6pos[{channel+1:03d}]')
 
-    async def execute(self, model: 'Model', operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         assert outputs_training is None, "'teach' is not supported."
-        logger.info(f"TecanFluentSimulator.execute <= [{operation}] [{inputs}]")
+        logger.info(f"TecanFluentSimulator.execute <= [{process}] [{inputs}]")
 
         outputs = {}
 
-        if operation.type == "ServePlate96":
+        if process.type == "ServePlate96":
             plate_id = self.__deck.new_plate96('7mm Nest_Riken[005]')
             outputs["value"] = {"value": {"id": plate_id}, "type": "Plate96"}
-        elif operation.type == "StoreLabware":
+        elif process.type == "StoreLabware":
             self.__deck.remove(inputs["in1"]["value"]["id"])  #XXX
         else:
             loop = asyncio.get_running_loop()
             future = loop.create_future()
-            job = {'future': future, 'model': model, 'operation': operation, 'inputs': inputs}
+            job = {'future': future, 'model': model, 'process': process, 'inputs': inputs}
             OPERATIONS_QUEUED.put_nowait(job)
             outputs = await future
 
-            if operation.type == "DispenseLiquid96Wells":
+            if process.type == "DispenseLiquid96Wells":
                 channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
                 self.__deck.dispense_liquid_96wells(f"50ml FalconTube 6pos[{channel+1:03d}]", '7mm Nest_Riken[005]', volume)
 
-        logger.info(f"TecanFluentSimulator.execute => [{operation}] [{outputs}]")
+        logger.info(f"TecanFluentSimulator.execute => [{process}] [{outputs}]")
         return outputs
 
 class TecanFluentController(SimulatorBase):
 
-    async def execute(self, model: 'Model', operation: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
         assert outputs_training is None, "'teach' is not supported."
         from . import tecan
 
         try:
-            outputs = await super().execute(model, operation, inputs, outputs_training)
+            outputs = await super().execute(model, process, inputs, outputs_training)
         except OperationNotSupportedError as err:
             outputs = {}
-            if operation.type == "ReadAbsorbance3Colors":
+            if process.type == "ReadAbsorbance3Colors":
                 params: dict[str, Any] = {}
                 (data, ), _ = tecan.read_absorbance_3colors(**params)
                 if inputs["in1"]["type"] == "Plate96":
@@ -114,7 +114,7 @@ class TecanFluentController(SimulatorBase):
                     data = [data[0][indices], data[1][indices], data[2][indices]]
                 outputs["value"] = {"value": data, "type": "Spread[Array[Float]]"}
                 outputs["out1"] = inputs["in1"]
-            elif operation.type == "DispenseLiquid96Wells":
+            elif process.type == "DispenseLiquid96Wells":
                 channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
                 if inputs["in1"]["type"] == "Plate96":
                     assert len(volume) == 96
