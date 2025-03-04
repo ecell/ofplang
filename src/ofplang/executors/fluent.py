@@ -6,7 +6,7 @@ from typing import Any
 import numpy
 import asyncio
 
-from ..base.executor import OperationNotSupportedError
+from ..base.executor import ProcessNotSupportedError
 from ..base.model import Model
 from ..base.protocol import EntityDescription
 
@@ -51,7 +51,7 @@ async def execute(future: asyncio.Future, model: 'Model', process: EntityDescrip
         await asyncio.sleep(15)
         outputs["out1"] = inputs["in1"]
     else:
-        future.set_exception(OperationNotSupportedError(f"Undefined process given [{process.id}, {process.type}]."))
+        future.set_exception(ProcessNotSupportedError(f"Undefined process given [{process.id}, {process.type}]."))
         return
 
     future.set_result(outputs)
@@ -101,7 +101,7 @@ class TecanFluentController(SimulatorBase):
 
         try:
             outputs = await super().execute(model, process, inputs, outputs_training)
-        except OperationNotSupportedError as err:
+        except ProcessNotSupportedError as err:
             outputs = {}
             if process.type == "ReadAbsorbance3Colors":
                 params: dict[str, Any] = {}

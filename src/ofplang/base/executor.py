@@ -31,7 +31,7 @@ class Executor:
     async def __call__(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str, outputs_training: dict | None = None) -> tuple[str, EntityDescription, dict]:
         raise NotImplementedError()
 
-class OperationNotSupportedError(RuntimeError):
+class ProcessNotSupportedError(RuntimeError):
     pass
 
 class ExecutorBase(Executor):
@@ -71,7 +71,7 @@ class ExecutorBase(Executor):
                 else:
                     pass
             else:
-                raise OperationNotSupportedError(f"Undefined process given [{process.id}, {process.type}].")
+                raise ProcessNotSupportedError(f"Undefined process given [{process.id}, {process.type}].")
         else:
-            raise OperationNotSupportedError(f"ExecutorBase only supports BuiltinProcess [{process.id}, {process.type}].")
+            raise ProcessNotSupportedError(f"ExecutorBase only supports BuiltinProcess [{process.id}, {process.type}].")
         return outputs

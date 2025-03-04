@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from collections import defaultdict
 import numpy
 
-from ..base.executor import OperationNotSupportedError
+from ..base.executor import ProcessNotSupportedError
 from ..base.model import Model
 from ..base.protocol import EntityDescription
 
@@ -150,7 +150,7 @@ class SimulatorBase(BuiltinExecutor):
 
         try:
             outputs = await super().execute(model, process, inputs, outputs_training)
-        except OperationNotSupportedError as err:
+        except ProcessNotSupportedError as err:
             outputs = {}
             if process.type == "ServePlate96":
                 plate_id = self.new_plate(None if outputs_training is None else outputs_training["value"]["value"]["id"])
@@ -203,7 +203,7 @@ class Simulator(SimulatorBase):
 
         try:
             outputs = await super().execute(model, process, inputs, outputs_training)
-        except OperationNotSupportedError as err:
+        except ProcessNotSupportedError as err:
             outputs = {}
             if process.type == "ReadAbsorbance3Colors":
                 plate_id = inputs["in1"]["value"]["id"]
