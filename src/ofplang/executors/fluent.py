@@ -10,14 +10,14 @@ from ..base.executor import ProcessNotSupportedError, ExecutorBase
 from ..base.model import Model
 from ..base.protocol import EntityDescription
 
-from .simulator import SimulatorBase, DeckSimulator
+from .simulator import DeckSimulator
 
 logger = getLogger(__name__)
 
 OPERATIONS_QUEUED: 'asyncio.Queue[dict]' = asyncio.Queue()
 
-async def tecan_fluent_operator():
-    operator = Operator()
+async def tecan_fluent_operator(simulation: bool = True):
+    operator = Operator(simulation)
     operator.initialize()
 
     while True:
@@ -29,7 +29,8 @@ async def tecan_fluent_operator():
 
 class Operator:
 
-    def __init__(self) -> None:
+    def __init__(self, simulation: bool = True) -> None:
+        self.simulation = simulation
         self.__deck = DeckSimulator()
     
     @property
@@ -41,9 +42,11 @@ class Operator:
         for channel in range(6):
             self.__deck.new_falcon50(f'50ml FalconTube 6pos[{channel+1:03d}]')
     
-    async def execute(self, future: asyncio.Future, model: 'Model', operation: str, inputs: dict) -> None:
-        logger.info(f"execute [{operation.id}] [{operation.type}].")
-        # from . import tecan
+    async def execute(self, future: asyncio.Future, model: 'Model', operation: str, inputs: dict, address: str) -> None:
+        logger.info(f"execute [{operation}].")
+        
+        if not self.simulation:
+            from . import tecan
 
         outputs = {}
 
@@ -54,9 +57,12 @@ class Operator:
             self.__deck.remove(inputs["in1"]["value"]["id"])  #XXX
         elif operation == "ReadAbsorbance3Colors":
             params: dict[str, Any] = {}  # noqa: F841
-            # (data, ), _ = tecan.read_absorbance_3colors(**params)
-            await asyncio.sleep(3)
-            data = numpy.zeros(96, dtype=float)
+
+            if self.simulation:
+                await asyncio.sleep(3)
+                data = numpy.zeros(96, dtype=float)
+            else:
+                (data, ), _ = tecan.read_absorbance_3colors(**params)
 
             assert inputs["in1"]["type"] == "Plate96"
             outputs["value"] = {"value": data, "type": "Spread[Array[Float]]"}
@@ -68,10 +74,13 @@ class Operator:
             volume = numpy.asarray(volume)
             volume = volume.astype(int)
             params = {'data': volume, 'channel': channel}  # noqa: F841
-            # _ = tecan.dispense_liquid_96wells(**params)
-            await asyncio.sleep(5)
-            outputs["out1"] = inputs["in1"]
 
+            if self.simulation:
+                await asyncio.sleep(5)
+            else:
+                _ = tecan.dispense_liquid_96wells(**params)
+            
+            outputs["out1"] = inputs["in1"]
             self.__deck.dispense_liquid_96wells(f"50ml FalconTube 6pos[{channel+1:03d}]", '7mm Nest_Riken[005]', volume)
         else:
             future.set_exception(ProcessNotSupportedError(f"Undefined process given [{operation}]."))
@@ -79,61 +88,26 @@ class Operator:
 
         future.set_result(outputs)
 
-class TecanFluentSimulator(ExecutorBase):
+class TecanFluentController(ExecutorBase):
 
-    def queue_operation(self, model: 'Model', process: EntityDescription, inputs: dict) -> asyncio.Future:
+    def queue_operation(self, model: 'Model', process: EntityDescription, inputs: dict, address: str) -> asyncio.Future:
         loop = asyncio.get_running_loop()
         future = loop.create_future()
-        job = {'future': future, 'model': model, 'operation': process.type, 'inputs': inputs}
+        job = {'future': future, 'model': model, 'operation': process.type, 'inputs': inputs, 'address': address}
         OPERATIONS_QUEUED.put_nowait(job)
         return future
 
-    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict) -> dict:
+    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str) -> dict:
         logger.info(f"TecanFluentSimulator.execute <= [{process}] [{inputs}]")
 
         outputs = {}
 
         try:
-            outputs = await super().execute(model, process, inputs)
+            outputs = await super().execute(model, process, inputs, job_id)
         except ProcessNotSupportedError as err:  # noqa: F841
-            outputs = await self.queue_operation(model, process, inputs)
+            operation_id = self.store.create_operation({})
+            outputs = await self.queue_operation(model, process, inputs, self.store.get_operation_uri(operation_id))
+            self.store.update_operation(operation_id, {})
 
         logger.info(f"TecanFluentSimulator.execute => [{process}] [{outputs}]")
-        return outputs
-
-class TecanFluentController(SimulatorBase):
-
-    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict) -> dict:
-        from . import tecan
-
-        try:
-            outputs = await super().execute(model, process, inputs)
-        except ProcessNotSupportedError as err:
-            outputs = {}
-            if process.type == "ReadAbsorbance3Colors":
-                params: dict[str, Any] = {}
-                (data, ), _ = tecan.read_absorbance_3colors(**params)
-                if inputs["in1"]["type"] == "Plate96":
-                    pass
-                else:
-                    assert inputs["in1"]["type"] == "SpotArray"
-                    indices = inputs["in1"]["value"]["indices"]
-                    data = [data[0][indices], data[1][indices], data[2][indices]]
-                outputs["value"] = {"value": data, "type": "Spread[Array[Float]]"}
-                outputs["out1"] = inputs["in1"]
-            elif process.type == "DispenseLiquid96Wells":
-                channel, volume = inputs["channel"]["value"], inputs["volume"]["value"]
-                if inputs["in1"]["type"] == "Plate96":
-                    assert len(volume) == 96
-                else:
-                    indices = inputs["in1"]["value"]["indices"]
-                    assert len(volume) == len(indices)
-                    volume, tmp = numpy.zeros(96), volume
-                    volume[indices] = tmp
-
-                volume = volume.astype(int)
-                params = {'data': volume, 'channel': channel}
-                _ = tecan.dispense_liquid_96wells(**params)
-            else:
-                raise err
         return outputs

@@ -3,7 +3,7 @@
 
 import numpy
 from ofplang.prelude import *
-from ofplang.executors import TecanFluentSimulator
+from ofplang.executors import TecanFluentController
 # from ofplang.executors.checker import TypeChecker
 
 import logging
@@ -21,7 +21,7 @@ async def main():
     # outputs = run(inputs, "./protocol1.yaml", "./definitions.yaml", TecanFluentSimulator())
 
     runner = Runner("./protocol1.yaml", "./definitions.yaml")
-    outputs = (await runner.run(inputs, executor=TecanFluentSimulator())).output
+    outputs = (await runner.run(inputs, executor=TecanFluentController())).output
 
     # inputs = {"volume1": {"value": numpy.linspace(0, 100, 96, dtype=float), "type": "Array[Float]"}, "condition": {"value": True, "type": "Boolean"}}
     # outputs = run(inputs, "./protocol2.yaml", "./definitions.yaml", Simulator())

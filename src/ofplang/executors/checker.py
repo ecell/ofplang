@@ -14,7 +14,7 @@ class TypeCheckError(RuntimeError):
 
 class TypeChecker(ExecutorBase):
 
-    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict) -> dict:
+    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str) -> dict:
         definition = model.get_definition_by_name(model.get_by_id(process.id).type)
         for port in definition.get('input', []):
             if port['id'] not in inputs:
@@ -24,7 +24,7 @@ class TypeChecker(ExecutorBase):
                     continue
             value = inputs[port['id']]
             assert 'type' in value
-            logger.warn(f"TypeChecker: Comparing [{value['type']}] with [{port['type']}] in [{process.id}]")
+            logger.warning(f"TypeChecker: Comparing [{value['type']}] with [{port['type']}] in [{process.id}]")
             if not model.is_acceptable(value['type'], port['type']):
                 raise TypeError(f"Invalid type [{value['type']}] was given [{port['id']}]")
         outputs = {port['id']: {'value': None, 'type': port['type']} for port in definition.get('output', [])}

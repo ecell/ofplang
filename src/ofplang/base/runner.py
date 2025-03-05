@@ -95,7 +95,6 @@ class RunHandler(Handler):
 
     def create_operation(self, id, metadata) -> None:
         assert self.__run is not None
-        pass
 
     def update_process(self, id, metadata) -> None:
         assert self.__run is not None

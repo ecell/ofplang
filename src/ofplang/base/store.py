@@ -15,26 +15,28 @@ class Location:
     id: str
     uri: str
 
-class Handler(metaclass=ABCMeta):
+class Handler:
 
     def __init__(self):
         pass
 
-    @abstractmethod
     def create_run(self, id, metadata) -> None:
-        """"""
+        pass
 
-    @abstractmethod
     def create_process(self, id, metadata) -> None:
-        """"""
+        pass
 
-    @abstractmethod
     def create_operation(self, id, metadata) -> None:
-        """"""
+        pass
 
-    @abstractmethod
+    def update_run(self, id, metadata) -> None:
+        pass
+
     def update_process(self, id, metadata) -> None:
-        """"""
+        pass
+
+    def update_operation(self, id, metadata) -> None:
+        pass
 
 class Store(metaclass=ABCMeta):
 
@@ -61,7 +63,27 @@ class Store(metaclass=ABCMeta):
         """"""
 
     @abstractmethod
+    def get_run_uri(self, id: str) -> str:
+        """"""
+
+    @abstractmethod
+    def get_process_uri(self, id: str) -> str:
+        """"""
+
+    @abstractmethod
+    def get_operation_uri(self, id: str) -> str:
+        """"""
+
+    @abstractmethod
+    def update_run(self, id: str, metadata) -> None:
+        """"""
+        
+    @abstractmethod
     def update_process(self, id: str, metadata) -> None:
+        """"""
+
+    @abstractmethod
+    def update_operation(self, id: str, metadata) -> None:
         """"""
 
 class FileStore(Store):
@@ -96,8 +118,14 @@ class FileStore(Store):
         [handler.create_operation(id, metadata) for handler in self.handlers]
         return id
 
+    def update_run(self, id: str, metadata) -> None:
+        [handler.update_run(id, metadata) for handler in self.handlers]
+
     def update_process(self, id: str, metadata) -> None:
         [handler.update_process(id, metadata) for handler in self.handlers]
+
+    def update_operation(self, id: str, metadata) -> None:
+        [handler.update_operation(id, metadata) for handler in self.handlers]
 
     def get_run_uri(self, id: str) -> str:
         return self.__get_path('runs', id).as_uri()

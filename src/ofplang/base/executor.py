@@ -38,11 +38,11 @@ class ExecutorBase(Executor):
 
     async def __call__(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str, outputs_training: dict | None = None) -> tuple[str, EntityDescription, dict]:
         assert outputs_training is None  # deprecated
-        outputs = await self.execute(model, process, inputs)
+        outputs = await self.execute(model, process, inputs, job_id)
         result = (job_id, process, outputs)
         return result
     
-    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict) -> dict:
+    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str) -> dict:
         # logger.info(f"execute: {(process, inputs)}")
 
         outputs = {}
