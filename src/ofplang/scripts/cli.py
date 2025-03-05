@@ -12,8 +12,7 @@ import yaml
 import click
 
 from ofplang.prelude import Runner
-from ofplang.executors import Simulator
-
+from ofplang.executors import TecanFluentController, tecan_fluent_operator
 logger = getLogger(__name__)
 
 def ndarray_representer(dumper: yaml.Dumper, array: numpy.ndarray) -> yaml.Node:
@@ -41,9 +40,11 @@ def cli() -> None:
 def run(protocol: str, definitions: str | None, cli_input_yaml: str | None, format: str, output: str | None) -> None:
     logger.debug(f"Run protocol [{protocol}] with definitions [{definitions}]")
 
+    asyncio.create_task(tecan_fluent_operator(simulation=True))
+
     if definitions is None:
         definitions = "./definitions.yaml"
-    runner = Runner(protocol, definitions, executor=Simulator())
+    runner = Runner(protocol, definitions, executor=TecanFluentController())
     
     logger.debug(f"Parse inputs [{cli_input_yaml}]")
     if cli_input_yaml is not None:

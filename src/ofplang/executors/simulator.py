@@ -7,9 +7,6 @@ from dataclasses import dataclass, field
 from collections import defaultdict
 import numpy
 
-from ..base.executor import ProcessNotSupportedError, ExecutorBase
-from ..base.model import Model
-from ..base.protocol import EntityDescription
 
 logger = getLogger(__name__)
 

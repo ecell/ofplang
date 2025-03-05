@@ -105,27 +105,27 @@ class FileStore(Store):
     
     def create_run(self, metadata) -> str:
         id = self.__create('runs')
-        [handler.create_run(id, metadata) for handler in self.handlers]
+        [handler.create_run(id, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
         return id
     
     def create_process(self, metadata) -> str:
         id = self.__create('processes')
-        [handler.create_process(id, metadata) for handler in self.handlers]
+        [handler.create_process(id, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
         return id
     
     def create_operation(self, metadata) -> str:
         id = self.__create('operations')
-        [handler.create_operation(id, metadata) for handler in self.handlers]
+        [handler.create_operation(id, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
         return id
 
     def update_run(self, id: str, metadata) -> None:
-        [handler.update_run(id, metadata) for handler in self.handlers]
+        [handler.update_run(id, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
 
     def update_process(self, id: str, metadata) -> None:
-        [handler.update_process(id, metadata) for handler in self.handlers]
+        [handler.update_process(id, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
 
     def update_operation(self, id: str, metadata) -> None:
-        [handler.update_operation(id, metadata) for handler in self.handlers]
+        [handler.update_operation(id, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
 
     def get_run_uri(self, id: str) -> str:
         return self.__get_path('runs', id).as_uri()

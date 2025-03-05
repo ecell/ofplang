@@ -17,9 +17,9 @@
 # from .builtin import BuiltinExecutor
 
 from .simulator import DeckSimulator
-from .fluent import TecanFluentController
+from .fluent import TecanFluentController, tecan_fluent_operator
 
-__all__ = ["TecanFluentController", "DeckSimulator"]
+__all__ = ["TecanFluentController", "DeckSimulator", 'tecan_fluent_operator']
 
 # import numpy as np
 # import torch
