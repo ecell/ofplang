@@ -143,15 +143,16 @@ class SimulatorBase(ExecutorBase):
     def get_plate(self, plate_id: str) -> Plate96:
         return self.__plates[plate_id]
 
-    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict) -> dict:
         logger.info(f"execute: {(process, inputs)}")
 
         try:
-            outputs = await super().execute(model, process, inputs, outputs_training)
+            outputs = await super().execute(model, process, inputs)
         except ProcessNotSupportedError as err:
             outputs = {}
             if process.type == "ServePlate96":
-                plate_id = self.new_plate(None if outputs_training is None else outputs_training["value"]["value"]["id"])
+                # plate_id = self.new_plate(None if outputs_training is None else outputs_training["value"]["value"]["id"])
+                plate_id = self.new_plate(None)
                 outputs["value"] = {"value": {"id": plate_id}, "type": "Plate96"}
             elif process.type == "StoreLabware":
                 pass
@@ -196,11 +197,9 @@ class SimulatorBase(ExecutorBase):
         return outputs
 class Simulator(SimulatorBase):
 
-    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
-        assert outputs_training is None, "'teach' is not supported."
-
+    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict) -> dict:
         try:
-            outputs = await super().execute(model, process, inputs, outputs_training)
+            outputs = await super().execute(model, process, inputs)
         except ProcessNotSupportedError as err:
             outputs = {}
             if process.type == "ReadAbsorbance3Colors":

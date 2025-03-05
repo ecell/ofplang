@@ -67,9 +67,9 @@ class Store(metaclass=ABCMeta):
 class FileStore(Store):
 
     def __init__(self, path: Path | None = None) -> None:
+        super().__init__()
         self.__root = path or (Path.cwd() / 'experiments')
     
-
     def __create(self, prefix: str, *, id: str | None = None) -> str:
         id = id or str(uuid.uuid4())
         path = self.__get_path(prefix, id)

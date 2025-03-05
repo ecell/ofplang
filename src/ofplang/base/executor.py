@@ -37,11 +37,12 @@ class ProcessNotSupportedError(RuntimeError):
 class ExecutorBase(Executor):
 
     async def __call__(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str, outputs_training: dict | None = None) -> tuple[str, EntityDescription, dict]:
-        outputs = await self.execute(model, process, inputs, outputs_training)
+        assert outputs_training is None  # deprecated
+        outputs = await self.execute(model, process, inputs)
         result = (job_id, process, outputs)
         return result
     
-    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, outputs_training: dict | None = None) -> dict:
+    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict) -> dict:
         # logger.info(f"execute: {(process, inputs)}")
 
         outputs = {}
