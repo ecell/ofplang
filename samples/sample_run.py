@@ -11,11 +11,9 @@ logging.basicConfig()
 logging.getLogger('ofplang').setLevel(level=logging.INFO)
 
 import asyncio
-from ofplang.executors.fluent import tecan_fluent_operator
+
 
 async def main():
-    asyncio.create_task(tecan_fluent_operator())
-
     inputs = {"volume1": {"value": numpy.zeros(96, dtype=float), "type": "Array[Float]"}, "volume2": {"value": numpy.zeros(96, dtype=float), "type": "Array[Float]"}}
     # outputs = run(inputs, "./protocol1.yaml", "./definitions.yaml", TypeChecker())
     # outputs = run(inputs, "./protocol1.yaml", "./definitions.yaml", TecanFluentSimulator())

@@ -70,6 +70,23 @@ class Deck:
         assert self.__stackable[dst] or len(self.__sites[dst]) == 0
         self.add(dst, self.pop(src))
 
+class DeckView:
+
+    def __init__(self, deck: Deck) -> None:
+        self.__deck = deck
+
+    def __getitem__(self, key: str) -> str:
+        return self.__deck[key]
+    
+    def sites(self):
+        return self.__deck.keys()
+
+    def get(self, id: str) -> Labware:
+        return self.__deck.get(id)
+    
+    def where(self, id: str) -> str | None:
+        return self.where(id)
+
 class DeckSimulator:
 
     def __init__(self):
@@ -82,7 +99,10 @@ class DeckSimulator:
         for channel in range(6):
             address = f'50ml FalconTube 6pos[{channel+1:03d}]'
             self.__deck.add_site(address)
-    
+
+    def view(self) -> DeckView:
+        return DeckView(self.__deck)
+
     def add_site(self, address: str, stackable: bool = False) -> None:
         self.__deck.add_site(address, stackable)
 

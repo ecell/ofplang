@@ -126,7 +126,7 @@ async def startup_event():  # this fucntion will run before the main API starts
     asyncio.create_task(waiting_consumer())
 
     from ofplang.executors.fluent import tecan_fluent_operator
-    asyncio.create_task(tecan_fluent_operator())
+    asyncio.create_task(tecan_fluent_operator(simulation=True))
 
 @app.get("/definitions")
 async def get_definitions():
@@ -199,12 +199,12 @@ async def waiting_consumer():
 
 async def run(protocol, input, definitions, artifacts):
     from ofplang.base import Runner, Definitions, Protocol
-    from ofplang.executors import TecanFluentSimulator
+    from ofplang.executors import TecanFluentController
 
     with input.open() as f:
         inputs = yaml.load(f, Loader=yaml.Loader)
 
-    runner = Runner(Protocol(protocol), Definitions(definitions), executor=TecanFluentSimulator())
+    runner = Runner(Protocol(protocol), Definitions(definitions), executor=TecanFluentController())
     experiment = await runner.run(inputs=inputs)
     outputs = experiment.output
     logger.info(f"{str(outputs)}")

@@ -10,32 +10,37 @@ from ..base.executor import ProcessNotSupportedError, ExecutorBase
 from ..base.model import Model
 from ..base.protocol import EntityDescription
 
-from .simulator import DeckSimulator
+from .simulator import DeckSimulator, DeckView
 
 logger = getLogger(__name__)
 
-OPERATIONS_QUEUED: 'asyncio.Queue[dict]' = asyncio.Queue()
-
-async def tecan_fluent_operator(simulation: bool = True):
-    operator = Operator(simulation)
-    operator.initialize()
-
-    while True:
-        while OPERATIONS_QUEUED.empty():
-            await asyncio.sleep(10)
-        job = await OPERATIONS_QUEUED.get()
-        await operator.execute(**job)
-        OPERATIONS_QUEUED.task_done()
 
 class Operator:
 
-    def __init__(self, simulation: bool = True) -> None:
+    def __init__(self, simulation: bool = True, deck: DeckSimulator | None = None) -> None:
         self.simulation = simulation
-        self.__deck = DeckSimulator()
-    
+        self.__deck = deck or DeckSimulator()
+        self.__OPERATIONS_QUEUED: 'asyncio.Queue[dict]' = asyncio.Queue()
+
+    def start(self) -> asyncio.Task:
+        return asyncio.create_task(self.run())
+
+    async def run(self) -> None:
+        self.initialize()
+
+        while True:
+            while self.__OPERATIONS_QUEUED.empty():
+                await asyncio.sleep(10)
+            job = await self.__OPERATIONS_QUEUED.get()
+            await self.execute(**job)
+            self.__OPERATIONS_QUEUED.task_done()
+
+    def put_nowait(self, job: dict) -> None:
+        self.__OPERATIONS_QUEUED.put_nowait(job)
+
     @property
-    def deck(self) -> DeckSimulator:
-        return self.__deck  #XXX
+    def deck(self) -> DeckView:
+        return self.__deck.view()
     
     def initialize(self) -> None:
         self.__deck.initialize()
@@ -90,11 +95,18 @@ class Operator:
 
 class TecanFluentController(ExecutorBase):
 
-    def queue_operation(self, model: 'Model', process: EntityDescription, inputs: dict, address: str) -> asyncio.Future:
+    def __init__(self, operator: Operator | None = None) -> None:
+        if operator is None:
+            self.__operator = Operator()
+            self.__operator.start()
+        else:
+            self.__operator = operator
+
+    def queue_operation(self, model: 'Model', operation: str, inputs: dict, address: str) -> asyncio.Future:
         loop = asyncio.get_running_loop()
         future = loop.create_future()
-        job = {'future': future, 'model': model, 'operation': process.type, 'inputs': inputs, 'address': address}
-        OPERATIONS_QUEUED.put_nowait(job)
+        job = {'future': future, 'model': model, 'operation': operation, 'inputs': inputs, 'address': address}
+        self.__operator.put_nowait(job)
         return future
 
     async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str) -> dict:
@@ -106,7 +118,7 @@ class TecanFluentController(ExecutorBase):
             outputs = await super().execute(model, process, inputs, job_id)
         except ProcessNotSupportedError as err:  # noqa: F841
             operation_id = self.store.create_operation({})
-            outputs = await self.queue_operation(model, process, inputs, self.store.get_operation_uri(operation_id))
+            outputs = await self.queue_operation(model, process.type, inputs, self.store.get_operation_uri(operation_id))
             self.store.update_operation(operation_id, {})
 
         logger.info(f"TecanFluentSimulator.execute => [{process}] [{outputs}]")
