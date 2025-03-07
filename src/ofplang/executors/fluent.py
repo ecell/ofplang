@@ -10,16 +10,16 @@ from ..base.executor import ProcessNotSupportedError, ExecutorBase
 from ..base.model import Model
 from ..base.protocol import EntityDescription
 
-from .simulator import DeckSimulator, DeckView
+from .simulator import DeckEditor, DeckView
 
 logger = getLogger(__name__)
 
 
 class Operator:
 
-    def __init__(self, simulation: bool = True, deck: DeckSimulator | None = None) -> None:
+    def __init__(self, simulation: bool = True, deck: DeckEditor | None = None) -> None:
         self.simulation = simulation
-        self.__deck = deck or DeckSimulator()
+        self.__deck = deck or DeckEditor()
         self.__OPERATIONS_QUEUED: 'asyncio.Queue[dict]' = asyncio.Queue()
 
     def start(self) -> asyncio.Task:

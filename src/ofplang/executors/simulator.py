@@ -87,7 +87,7 @@ class DeckView:
     def where(self, id: str) -> str | None:
         return self.where(id)
 
-class DeckSimulator:
+class DeckEditor:
 
     def __init__(self):
         self.__deck = Deck()
