@@ -5,7 +5,7 @@ from logging import getLogger
 import dataclasses
 import pathlib
 from collections import defaultdict, deque
-from typing import Any, ValuesView, IO
+from typing import Any, IO
 from collections.abc import MutableMapping
 from enum import IntEnum, auto
 import asyncio
@@ -14,7 +14,7 @@ from .protocol import PortAddress, Protocol, EntityDescription
 from .model import UntypedProcess, Model
 from .definitions import Definitions
 from .executor import Executor
-from .store import Store, FileStore, Handler
+from .store import Store
 
 logger = getLogger(__name__)
 
@@ -28,78 +28,6 @@ class StatusEnum(IntEnum):
     ACTIVE = auto()
     INACTIVE = auto()
 
-@dataclasses.dataclass
-class Job:
-    operation: EntityDescription
-    inputs: list[Token]
-    outputs: list[Token] | None
-    metadata: dict
-
-class Run:
-
-    def __init__(self, metadata: dict | None = None) -> None:
-        metadata = metadata or {}
-        self.__metadata = metadata
-        self.__running_jobs: dict[str, Job] = {}
-        self.__complete_jobs: list[Job] = []
-
-    def new_job(self, job_id: str, operation: EntityDescription, inputs: list[Token], metadata: dict | None = None) -> str:
-        metadata = metadata or {}
-        # job_id = str(uuid.uuid4())
-        self.__running_jobs[job_id] = Job(operation, inputs, None, metadata)
-        return job_id
-
-    def complete_job(self, job_id: str, outputs: list[Token], metadata: dict | None = None) -> None:
-        metadata = metadata or {}
-        assert job_id in self.__running_jobs, job_id
-        job = self.__running_jobs.pop(job_id)
-        self.__complete_jobs.append(Job(job.operation, job.inputs, outputs, dict(job.metadata, **metadata)))
-
-    @property
-    def input(self) -> dict[str, Any]:
-        assert len(self.__complete_jobs) > 0
-        job = self.__complete_jobs[0]
-        assert job.outputs is not None
-        assert job.operation.id == "input"
-        return {token.address.port_id: token.value for token in job.outputs}
-
-    @property
-    def output(self) -> dict[str, Any]:
-        assert len(self.__complete_jobs) > 1
-        job = self.__complete_jobs[-1]
-        assert job.operation.id == "output"
-        return {token.address.port_id: token.value for token in job.inputs}
-
-    def jobs(self) -> list[Job]:
-        return self.__complete_jobs  #XXX: copy?
-
-    def running(self) -> ValuesView[Job]:
-        return self.__running_jobs.values()
-
-class RunHandler(Handler):
-
-    def __init__(self) -> None:
-        self.__run: Run | None = None
-
-    @property    
-    def run(self) -> Run:
-        assert self.__run is not None
-        return self.__run
-
-    def create_run(self, id, metadata) -> None:
-        self.__run = Run(metadata={'id': id})
-
-    def create_process(self, id, metadata) -> None:
-        assert self.__run is not None
-        self.__run.new_job(id, EntityDescription(metadata['id'], metadata['base']), metadata['inputs'])
-
-    def create_operation(self, id, metadata) -> None:
-        assert self.__run is not None
-
-    def update_process(self, id, metadata) -> None:
-        assert self.__run is not None
-        self.__run.complete_job(id, metadata['outputs'])
-
 class Runner:
 
     def __init__(self, protocol: str | Protocol, definitions: str | Definitions, executor: Executor | None = None, store: Store | None = None) -> None:
@@ -112,8 +40,7 @@ class Runner:
         self.__process_status = {process.id: StatusEnum.INACTIVE for process in self.__model.processes()}
         self.__executor = executor
 
-        self.__store = store or FileStore()
-        self.__store.add_handler(RunHandler())
+        self.__store = store or Store()
 
     @property
     def executor(self) -> Executor | None:
@@ -155,7 +82,7 @@ class Runner:
                 input_tokens = [
                     (self.__tokens[address].pop() if self.has_token(address) else Token(address, port.default or {}))  #XXX: port.default can be None
                     for address, port in process.input()]
-                job_id = self.__store.create_process(dict(id=process.id, base=process.type, inputs=input_tokens))
+                job_id = self.start_job(process.asentitydesc(), input_tokens)
                 jobs.append((job_id, process, {token.address.port_id: token.value for token in input_tokens}))
 
                 # IOProcess fires only once.
@@ -163,18 +90,22 @@ class Runner:
                     self.deactivate(process.id)
         return jobs
 
+    def start_job(self, process: EntityDescription, input_tokens: list[Token]) -> str:
+        job_id = self.__store.create_process(dict(id=process.id, base=process.type, inputs=input_tokens))
+        return job_id
+
     def complete_job(self, job_id: str, process: EntityDescription, outputs: dict[str, Any]) -> None:
         logger.info(f"complete_job {job_id} {process.type}")
         output_tokens = [Token(PortAddress(process.id, key), value) for key, value in outputs.items()]
-        self.__store.update_process(job_id, dict(outputs=output_tokens))
         for token in output_tokens:
             self.__tokens[token.address].append(token)
+        self.__store.finish_process(job_id, metadata=dict(outputs=output_tokens))
 
-    async def run(self, inputs: dict, *, executor: Executor | None = None) -> Run:
+    async def run(self, inputs: dict, *, executor: Executor | None = None) -> dict[str, Any]:
         executor = executor or self.__executor
         assert executor is not None
 
-        _ = self.__store.create_run({})
+        run_id = self.__store.create_run({'checksum': self.__model.protocol.md5()})
 
         self.clear_tokens()
         executor.initialize()
@@ -189,7 +120,9 @@ class Runner:
                     input_outputs[address.port_id] = port.default.copy()
 
         input_process = EntityDescription("input", "IOProcess")
-        job_id = self.__store.create_process(dict(id="input", base="IOProcess", inputs=[]))
+        job_id = self.start_job(input_process, [])
+        operation_id = self.__store.create_operation(dict(process_id=job_id, name=input_process.type))
+        self.__store.finish_operation(operation_id)
         self.complete_job(job_id, input_process, input_outputs)
         self.activate_all()
 
@@ -213,16 +146,17 @@ class Runner:
             raise RuntimeError("Never get here.")
 
         output_tokens = [self.__tokens[address].pop() for address, _ in self.model.output()]
-        output_operation = EntityDescription("output", "IOProcess")
-        job_id = self.__store.create_process(dict(id="output", base="IOProcess", inputs=output_tokens))
-        self.complete_job(job_id, output_operation, {})
+        output_process = EntityDescription("output", "IOProcess")
+        job_id = self.start_job(output_process, output_tokens)
+        operation_id = self.__store.create_operation(dict(process_id=job_id, name=output_process.type))
+        self.__store.finish_operation(operation_id)
+        self.complete_job(job_id, output_process, {})
 
-        assert isinstance(self.__store.handlers[-1], RunHandler)
-        experiment = self.__store.handlers[-1].run  #XXX:
-        assert len(experiment.running()) == 0, f"Running job(s) remained [{len(experiment.running())}]."
-        return experiment
+        self.__store.finish_run(run_id)
 
-    def run_sync(self, inputs: dict, *, executor: Executor | None = None) -> Run:
+        return {token.address.port_id: token.value for token in output_tokens}
+
+    def run_sync(self, inputs: dict, *, executor: Executor | None = None) -> dict[str, Any]:
         return asyncio.run(self.run(inputs, executor=executor))
 
     def _tokens(self):
@@ -245,7 +179,7 @@ def run(
         inputs: dict,
         protocol: Protocol | str | pathlib.Path | IO,
         definitions: Definitions | str | pathlib.Path | IO,
-        executor: Executor) -> dict:
+        executor: Executor) -> dict[str, Any]:
     if not isinstance(definitions, Definitions):
         definitions = Definitions(definitions)
 
@@ -253,5 +187,5 @@ def run(
         protocol = Protocol(protocol)
 
     runner = Runner(protocol, definitions, executor=executor)
-    experiment = runner.run_sync(inputs=inputs)
-    return experiment.output
+    outputs = runner.run_sync(inputs=inputs)
+    return outputs

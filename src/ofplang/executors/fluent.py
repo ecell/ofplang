@@ -64,7 +64,7 @@ class Operator:
             params: dict[str, Any] = {}  # noqa: F841
 
             if self.simulation:
-                await asyncio.sleep(3)
+                await asyncio.sleep(10)
                 data = numpy.zeros(96, dtype=float)
             else:
                 (data, ), _ = tecan.read_absorbance_3colors(**params)
@@ -81,7 +81,7 @@ class Operator:
             params = {'data': volume, 'channel': channel}  # noqa: F841
 
             if self.simulation:
-                await asyncio.sleep(5)
+                await asyncio.sleep(15)
             else:
                 _ = tecan.dispense_liquid_96wells(**params)
             
@@ -111,15 +111,15 @@ class TecanFluentController(ExecutorBase):
 
     async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str) -> dict:
         logger.info(f"TecanFluentSimulator.execute <= [{process}] [{inputs}]")
+        operation_id = self.store.create_operation(dict(process_id=job_id, name=process.type))
 
         outputs = {}
 
         try:
             outputs = await super().execute(model, process, inputs, job_id)
         except ProcessNotSupportedError as err:  # noqa: F841
-            operation_id = self.store.create_operation({})
             outputs = await self.queue_operation(model, process.type, inputs, self.store.get_operation_uri(operation_id))
-            self.store.update_operation(operation_id, {})
 
         logger.info(f"TecanFluentSimulator.execute => [{process}] [{outputs}]")
+        self.store.finish_operation(operation_id)
         return outputs

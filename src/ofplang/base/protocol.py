@@ -8,6 +8,7 @@ from copy import deepcopy
 import pathlib
 import dataclasses
 import sys
+import hashlib
 import io
 import yaml  # type: ignore
 
@@ -69,6 +70,14 @@ class Protocol:
             self.__save(file)
         else:
             raise TypeError(f"Invalid type [{type(file)}]")
+
+    def md5(self) -> str:
+        f = io.StringIO()
+        self.__save(f)
+        s = f.getvalue().encode('utf-8')
+        md5_hash = hashlib.md5()
+        md5_hash.update(s)
+        return md5_hash.hexdigest()
 
     def dump(self) -> None:
         self.save(sys.stdout)

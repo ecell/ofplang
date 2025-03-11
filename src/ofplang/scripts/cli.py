@@ -52,7 +52,7 @@ def run(protocol: str, definitions: str | None, cli_input_yaml: str | None, form
         inputs = {}
 
     logger.debug(f"Input value: {inputs}")
-    outputs = asyncio.run(runner.run(inputs)).output
+    outputs = asyncio.run(runner.run(inputs))
     logger.debug(f"Output value: {outputs}")
 
     with contextlib.nullcontext(sys.stdout) if output is None else pathlib.Path(output).open('w') as f:

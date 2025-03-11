@@ -54,7 +54,14 @@ class UntypedModel:
         self.__definitions = definitions
         self.__load()
 
+    @property
+    def protocol(self) -> Protocol:
+        return self.__protocol
 
+    @property
+    def definitions(self) -> Definitions:
+        return self.__definitions
+    
     def __load(self) -> None:
         self.__processes = OrderedDict()
         for process_desc, process_dict in self.__protocol.processes_with_dict():
