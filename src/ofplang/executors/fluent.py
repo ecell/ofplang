@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger
 
+import inspect
 from typing import Any
 from io import StringIO
 import numpy
@@ -114,10 +115,11 @@ class TecanFluentController(ExecutorBase):
         logger.info(f"TecanFluentSimulator.execute <= [{process}] [{inputs}]")
         operation_id = self.store.create_operation(dict(process_id=job_id, name=process.type))
 
+        func_name = inspect.currentframe().f_code.co_qualname  # type: ignore[union-attr]
         text = StringIO()  # for logging
-        text.write(f"process={str(process)}\n")
-        text.write(f"inputs={str(inputs)}\n")
-        text.write(f"job_id={job_id}\n")
+        text.write(f"{func_name}: process={str(process)}\n")
+        text.write(f"{func_name}: inputs={str(inputs)}\n")
+        text.write(f"{func_name}: job_id={job_id}\n")
         self.store.log_operation_text(operation_id, text.getvalue(), "log.txt")
 
         outputs = {}
@@ -130,7 +132,7 @@ class TecanFluentController(ExecutorBase):
         logger.info(f"TecanFluentSimulator.execute => [{process}] [{outputs}]")
         self.store.finish_operation(operation_id)
 
-        text.write(f"outputs={str(outputs)}\n")
+        text.write(f"{func_name}: outputs={str(outputs)}\n")
         self.store.log_operation_text(operation_id, text.getvalue(), "log.txt")
 
         return outputs

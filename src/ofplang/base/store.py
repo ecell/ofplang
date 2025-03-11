@@ -6,9 +6,11 @@ import dataclasses
 import uuid
 from pathlib import Path, PurePath
 from abc import ABCMeta, abstractmethod
-import requests
+from collections import defaultdict
+import copy
 from datetime import datetime
 from typing import Any, ValuesView
+import requests
 
 from .protocol import EntityDescription, PortAddress
 
@@ -25,19 +27,19 @@ class Handler:
     def __init__(self):
         pass
 
-    def create_run(self, run_id: str, storage_address: str, metadata: dict) -> None:
+    def create_run(self, run_id: str, storage_address: str, metadata: dict | None) -> None:
         pass
 
     def finish_run(self, run_id: str, status: str, metadata: dict | None) -> None:
         pass
 
-    def create_process(self, process_id: str, storage_address: str, metadata) -> None:
+    def create_process(self, process_id: str, storage_address: str, metadata: dict | None) -> None:
         pass
 
     def finish_process(self, process_id: str, status: str, metadata: dict | None) -> None:
         pass
 
-    def create_operation(self, operation_id: str, storage_address: str, metadata) -> None:
+    def create_operation(self, operation_id: str, storage_address: str, metadata: dict | None) -> None:
         pass
 
     def finish_operation(self, operation_id: str, status: str, metadata: dict | None) -> None:
@@ -120,7 +122,7 @@ class Store(Store_):
     def get_operation_uri(self, id: str) -> str:
         return self.__get_path('operations', id).as_uri()
     
-    def create_run(self, metadata) -> str:
+    def create_run(self, metadata: dict | None) -> str:
         run_id = self.__create('runs')
         storage_address = self.get_run_uri(run_id)
         [handler.create_run(run_id, storage_address, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
@@ -129,7 +131,7 @@ class Store(Store_):
     def finish_run(self, run_id: str, status: str = 'completed', metadata: dict | None = None) -> None:
         [handler.finish_run(run_id, status, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
 
-    def create_process(self, metadata: dict) -> str:
+    def create_process(self, metadata: dict | None) -> str:
         process_id = self.__create('processes')
         storage_address = self.get_process_uri(process_id)
         [handler.create_process(process_id, storage_address, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
@@ -138,7 +140,7 @@ class Store(Store_):
     def finish_process(self, process_id: str, status: str = 'completed', metadata: dict | None = None) -> None:
         [handler.finish_process(process_id, status, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
 
-    def create_operation(self, metadata) -> str:
+    def create_operation(self, metadata: dict | None) -> str:
         operation_id = self.__create('operations')
         storage_address = self.get_operation_uri(operation_id)
         [handler.create_operation(operation_id, storage_address, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
@@ -231,9 +233,11 @@ class Tracking:
         self.__url = url
 
         self.__run_id: int | None = None
+        
         self.__process_id_map: dict[str, int] = {}
         self.__operation_id_map: dict[str, int] = {}
-        self.__last_operation_id: str | None = None
+        self.__process_dependencies: dict[str, list[str]] = {}
+        self.__process_operation_map: dict[str, list[str]] = defaultdict(list)
     
     def create_run(self, project_id: int, user_id: int, checksum: str, file_name: str = 'dummy') -> int:
         response = requests.post(
@@ -269,9 +273,10 @@ class Tracking:
         self.__run_id = None
         self.__process_id_map = {}
         self.__operation_id_map = {}
-        self.__last_operation_id = None
+        self.__process_dependencies = {}
+        self.__process_operation_map = defaultdict(list)
 
-    def start_process(self, process_id: str, name: str, storage_address: str = '') -> int:
+    def start_process(self, process_id: str, name: str, storage_address: str = '', dependencies: list[str] | None = None) -> int:
         assert self.__run_id is not None
         response = requests.post(
             url=f'{self.__url}/processes/',
@@ -284,6 +289,7 @@ class Tracking:
         )
         db_id = response.json()["id"]
         self.__process_id_map[process_id] = db_id
+        self.__process_dependencies[process_id] = copy.copy(dependencies) if dependencies is not None else []
         return db_id
 
     def finish_process(self, process_id: str, status: str = 'completed') -> None:
@@ -291,7 +297,7 @@ class Tracking:
 
     def start_operation(self, operation_id: str, process_id: str, name: str, storage_address: str = '') -> int:
         assert self.__run_id is not None
-        src_operation_ids = [self.__last_operation_id] if self.__last_operation_id is not None else None
+        # src_operation_ids = [self.__last_operation_id] if self.__last_operation_id is not None else None
 
         response = requests.post(
             url=f'{self.__url}/operations/',
@@ -307,16 +313,18 @@ class Tracking:
         )
         db_id = response.json()["id"]
         self.__operation_id_map[operation_id] = db_id
+        self.__process_operation_map[process_id].append(operation_id)
+
         run_start_time = datetime.now().isoformat()
         requests.patch(url=f'{self.__url}/operations/{db_id}', data={"attribute": "started_at", "new_value": run_start_time}, verify=False)
 
-        if src_operation_ids is not None:
-            for src_operation_id in src_operation_ids:
+        for src_id in self.__process_dependencies[process_id]:
+            if src_id in self.__process_operation_map:
                 response = requests.post(
                     url=f'{self.__url}/edges/',
                     data={
                         "run_id": self.__run_id,
-                        "from_id": self.__operation_id_map[src_operation_id],
+                        "from_id": self.__operation_id_map[self.__process_operation_map[src_id][-1]],
                         "to_id": db_id,
                     },
                     verify=False
@@ -330,7 +338,7 @@ class Tracking:
         requests.patch(url=f'{self.__url}/operations/{db_id}', data={"attribute": "finished_at", "new_value": run_finished_time}, verify=False)
         requests.patch(url=f'{self.__url}/operations/{db_id}', data={"attribute": "status", "new_value": status}, verify=False)
 
-        self.__last_operation_id = operation_id
+        # self.__last_operation_id = operation_id
 
     def get_operation_log(self, operation_id: str) -> str:
         db_id = self.__operation_id_map[operation_id]
@@ -350,7 +358,7 @@ class TrackingHandler(Handler):
     def tracking(self) -> 'Tracking':
         return self.__tracking
 
-    def create_run(self, run_id: str, storage_address: str, metadata: dict) -> None:
+    def create_run(self, run_id: str, storage_address: str, metadata: dict | None) -> None:
         assert metadata is not None and 'checksum' in metadata
         self.__tracking.start_run(storage_address, metadata['checksum'])
 
@@ -360,12 +368,12 @@ class TrackingHandler(Handler):
     def create_process(self, process_id: str, storage_address: str, metadata: dict | None) -> None:
         assert metadata is not None and 'id' in metadata
         name = metadata['id']
-        self.__tracking.start_process(process_id, name, storage_address)
+        self.__tracking.start_process(process_id, name, storage_address, dependencies=metadata.get('dependencies', None))
 
     def finish_process(self, process_id: str, status: str, metadata: dict | None) -> None:
         self.__tracking.finish_process(process_id, status)
 
-    def create_operation(self, operation_id: str, storage_address: str, metadata) -> None:
+    def create_operation(self, operation_id: str, storage_address: str, metadata: dict | None) -> None:
         assert metadata is not None and 'process_id' in metadata
         assert metadata is not None and 'name' in metadata
         self.__tracking.start_operation(operation_id, metadata['process_id'], metadata['name'], storage_address)

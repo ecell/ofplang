@@ -3,11 +3,13 @@
 from logging import getLogger
 
 import dataclasses
+import inspect
 import pathlib
 from collections import defaultdict, deque
 from typing import Any, IO
 from collections.abc import MutableMapping
 from enum import IntEnum, auto
+from io import StringIO
 import asyncio
 
 from .protocol import PortAddress, Protocol, EntityDescription
@@ -18,11 +20,12 @@ from .store import Store
 
 logger = getLogger(__name__)
 
-
 @dataclasses.dataclass
 class Token:
     address: PortAddress
     value: dict[str, Any]
+    current_id: str = ''
+    previous_id: str = ''
 
 class StatusEnum(IntEnum):
     ACTIVE = auto()
@@ -62,7 +65,7 @@ class Runner:
         new_tokens: MutableMapping[PortAddress, deque[Token]] = defaultdict(deque)
         for connection in self.__model.connections():
             for token in self.__tokens[connection.input]:
-                new_token = Token(connection.output, token.value)
+                new_token = Token(connection.output, token.value, previous_id=token.current_id)
                 new_tokens[new_token.address].append(new_token)
         for connection in self.__model.connections():
             if connection.input in self.__tokens:
@@ -91,15 +94,28 @@ class Runner:
         return jobs
 
     def start_job(self, process: EntityDescription, input_tokens: list[Token]) -> str:
-        job_id = self.__store.create_process(dict(id=process.id, base=process.type, inputs=input_tokens))
+        dependencies = sorted(set(token.previous_id for token in input_tokens if token.previous_id != ''))
+        job_id = self.__store.create_process(dict(id=process.id, base=process.type, inputs=input_tokens, dependencies=dependencies))
         return job_id
 
     def complete_job(self, job_id: str, process: EntityDescription, outputs: dict[str, Any]) -> None:
         logger.info(f"complete_job {job_id} {process.type}")
-        output_tokens = [Token(PortAddress(process.id, key), value) for key, value in outputs.items()]
+        output_tokens = [Token(PortAddress(process.id, key), value, current_id=job_id) for key, value in outputs.items()]
         for token in output_tokens:
             self.__tokens[token.address].append(token)
         self.__store.finish_process(job_id, metadata=dict(outputs=output_tokens))
+
+    def execute_io(self, job_id: str, process: EntityDescription, inputs: dict[str, Any], outputs: dict[str, Any]) -> None:
+        #XXX: input/output are not executed by Executor
+        operation_id = self.__store.create_operation(dict(process_id=job_id, name=process.type))
+        func_name = inspect.currentframe().f_code.co_qualname  # type: ignore[union-attr]
+        text = StringIO()  # for logging
+        text.write(f"{func_name}: process={str(process)}\n")
+        text.write(f"{func_name}: inputs={str(inputs)}\n")
+        text.write(f"{func_name}: job_id={job_id}\n")
+        text.write(f"{func_name}: outputs={str(outputs)}\n")
+        self.__store.log_operation_text(operation_id, text.getvalue(), "log.txt")
+        self.__store.finish_operation(operation_id)
 
     async def run(self, inputs: dict, *, executor: Executor | None = None) -> dict[str, Any]:
         executor = executor or self.__executor
@@ -111,6 +127,8 @@ class Runner:
         executor.initialize()
         executor.set_store(self.__store)
 
+        input_tokens: list[Token] = []
+        input_inputs = {token.address.port_id: token.value for token in input_tokens}
         input_outputs = inputs.copy()
         for address, port in self.__model.input():
             if address.port_id not in inputs:
@@ -120,9 +138,8 @@ class Runner:
                     input_outputs[address.port_id] = port.default.copy()
 
         input_process = EntityDescription("input", "IOProcess")
-        job_id = self.start_job(input_process, [])
-        operation_id = self.__store.create_operation(dict(process_id=job_id, name=input_process.type))
-        self.__store.finish_operation(operation_id)
+        job_id = self.start_job(input_process, input_tokens)
+        self.execute_io(job_id, input_process, input_inputs, input_outputs)
         self.complete_job(job_id, input_process, input_outputs)
         self.activate_all()
 
@@ -146,11 +163,12 @@ class Runner:
             raise RuntimeError("Never get here.")
 
         output_tokens = [self.__tokens[address].pop() for address, _ in self.model.output()]
+        output_inputs = {token.address.port_id: token.value for token in output_tokens}
+        output_outputs: dict[str, Any] = {}
         output_process = EntityDescription("output", "IOProcess")
         job_id = self.start_job(output_process, output_tokens)
-        operation_id = self.__store.create_operation(dict(process_id=job_id, name=output_process.type))
-        self.__store.finish_operation(operation_id)
-        self.complete_job(job_id, output_process, {})
+        self.execute_io(job_id, output_process, output_inputs, output_outputs)
+        self.complete_job(job_id, output_process, output_outputs)
 
         self.__store.finish_run(run_id)
 
