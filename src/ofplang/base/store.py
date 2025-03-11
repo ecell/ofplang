@@ -4,7 +4,7 @@ from logging import getLogger
 
 import dataclasses
 import uuid
-from pathlib import Path
+from pathlib import Path, PurePath
 from abc import ABCMeta, abstractmethod
 import requests
 from datetime import datetime
@@ -43,15 +43,7 @@ class Handler:
     def finish_operation(self, operation_id: str, status: str, metadata: dict | None) -> None:
         pass
 
-    #XXX
-
-    def update_run(self, id, metadata) -> None:
-        pass
-
-    def update_process(self, id, metadata) -> None:
-        pass
-
-    def update_operation(self, id, metadata) -> None:
+    def log_operation_text(self, operation_id: str, text: str, artifact_file: str) -> None:
         pass
 
 class Store_(metaclass=ABCMeta):
@@ -155,16 +147,8 @@ class Store(Store_):
     def finish_operation(self, operation_id: str, status: str = 'completed', metadata: dict | None = None) -> None:
         [handler.finish_operation(operation_id, status, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
 
-    #XXX
-
-    def update_run(self, id: str, metadata) -> None:
-        [handler.update_run(id, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
-
-    def update_process(self, id: str, metadata) -> None:
-        [handler.update_process(id, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
-
-    def update_operation(self, id: str, metadata) -> None:
-        [handler.update_operation(id, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
+    def log_operation_text(self, operation_id: str, text: str, artifact_file: str) -> None:
+        [handler.log_operation_text(operation_id, text, artifact_file) for handler in self.handlers]  # type: ignore[func-returns-value]
 
 TokenTuple = tuple[PortAddress, dict[str, Any]]
 @dataclasses.dataclass
@@ -240,13 +224,6 @@ class RunHandler(Handler):
 
     def create_operation(self, operation_id: str, storage_address: str, metadata: dict | None) -> None:
         assert self.__run is not None
-
-    #XXX
-    
-    def update_process(self, id, metadata) -> None:
-        assert self.__run is not None
-        self.__run.complete_job(id, [dataclasses.astuple(token) for token in metadata['outputs']])
-
 
 class Tracking:
 
@@ -355,6 +332,15 @@ class Tracking:
 
         self.__last_operation_id = operation_id
 
+    def get_operation_log(self, operation_id: str) -> str:
+        db_id = self.__operation_id_map[operation_id]
+        response = requests.get(url=f'{self.__url}/operations/{db_id}', verify=False)
+        return response.json()["log"]
+
+    def set_operation_log(self, operation_id: str, text: str) -> None:
+        db_id = self.__operation_id_map[operation_id]
+        requests.patch(url=f'{self.__url}/operations/{db_id}', data={"attribute": "log", "new_value": text}, verify=False)
+
 class TrackingHandler(Handler):
 
     def __init__(self, url: str) -> None:
@@ -386,3 +372,8 @@ class TrackingHandler(Handler):
 
     def finish_operation(self, operation_id: str, status: str, metadata: dict | None) -> None:
         self.__tracking.finish_operation(operation_id, status)
+
+    def log_operation_text(self, operation_id: str, text: str, artifact_file: str) -> None:
+        if PurePath(artifact_file) != PurePath('./log.txt'):
+            return
+        self.__tracking.set_operation_log(operation_id, text)

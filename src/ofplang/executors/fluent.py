@@ -3,6 +3,7 @@
 from logging import getLogger
 
 from typing import Any
+from io import StringIO
 import numpy
 import asyncio
 
@@ -113,6 +114,12 @@ class TecanFluentController(ExecutorBase):
         logger.info(f"TecanFluentSimulator.execute <= [{process}] [{inputs}]")
         operation_id = self.store.create_operation(dict(process_id=job_id, name=process.type))
 
+        text = StringIO()  # for logging
+        text.write(f"process={str(process)}\n")
+        text.write(f"inputs={str(inputs)}\n")
+        text.write(f"job_id={job_id}\n")
+        self.store.log_operation_text(operation_id, text.getvalue(), "log.txt")
+
         outputs = {}
 
         try:
@@ -122,4 +129,8 @@ class TecanFluentController(ExecutorBase):
 
         logger.info(f"TecanFluentSimulator.execute => [{process}] [{outputs}]")
         self.store.finish_operation(operation_id)
+
+        text.write(f"outputs={str(outputs)}\n")
+        self.store.log_operation_text(operation_id, text.getvalue(), "log.txt")
+
         return outputs
