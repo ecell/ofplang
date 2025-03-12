@@ -21,11 +21,30 @@ from .store import Store
 logger = getLogger(__name__)
 
 @dataclasses.dataclass
+class TokenAddress:
+    process_id: str
+    port_id: str
+    id: str = ''
+
+    def port_address(self) -> PortAddress:
+        return PortAddress(self.process_id, self.port_id)
+
+    @classmethod
+    def instance(cls, address: PortAddress) -> 'TokenAddress':
+        return cls(address.process_id, address.port_id)
+
+@dataclasses.dataclass
 class Token:
-    address: PortAddress
+    address: TokenAddress
     value: dict[str, Any]
-    current_id: str = ''
-    previous_id: str = ''
+    previous: TokenAddress | None = None
+
+# @dataclasses.dataclass
+# class Token:
+#     address: PortAddress
+#     value: dict[str, Any]
+#     current_id: str = ''
+#     previous_id: str = ''
 
 class StatusEnum(IntEnum):
     ACTIVE = auto()
@@ -65,8 +84,8 @@ class Runner:
         new_tokens: MutableMapping[PortAddress, deque[Token]] = defaultdict(deque)
         for connection in self.__model.connections():
             for token in self.__tokens[connection.input]:
-                new_token = Token(connection.output, token.value, previous_id=token.current_id)
-                new_tokens[new_token.address].append(new_token)
+                new_token = Token(TokenAddress.instance(connection.output), token.value, token.address)
+                new_tokens[new_token.address.port_address()].append(new_token)
         for connection in self.__model.connections():
             if connection.input in self.__tokens:
                 del self.__tokens[connection.input]
@@ -83,7 +102,7 @@ class Runner:
                     continue
                 # pop tokens here
                 input_tokens = [
-                    (self.__tokens[address].pop() if self.has_token(address) else Token(address, port.default or {}))  #XXX: port.default can be None
+                    (self.__tokens[address].pop() if self.has_token(address) else Token(TokenAddress.instance(address), port.default or {}))  #XXX: port.default can be None
                     for address, port in process.input()]
                 job_id = self.start_job(process.asentitydesc(), input_tokens)
                 jobs.append((job_id, process, {token.address.port_id: token.value for token in input_tokens}))
@@ -94,15 +113,15 @@ class Runner:
         return jobs
 
     def start_job(self, process: EntityDescription, input_tokens: list[Token]) -> str:
-        dependencies = sorted(set(token.previous_id for token in input_tokens if token.previous_id != ''))
+        dependencies = sorted(set(token.previous.id for token in input_tokens if (token.previous is not None and token.previous.id != '')))
         job_id = self.__store.create_process(dict(id=process.id, base=process.type, inputs=input_tokens, dependencies=dependencies))
         return job_id
 
     def complete_job(self, job_id: str, process: EntityDescription, outputs: dict[str, Any]) -> None:
         logger.info(f"complete_job {job_id} {process.type}")
-        output_tokens = [Token(PortAddress(process.id, key), value, current_id=job_id) for key, value in outputs.items()]
+        output_tokens = [Token(TokenAddress(process.id, key, job_id), value) for key, value in outputs.items()]
         for token in output_tokens:
-            self.__tokens[token.address].append(token)
+            self.__tokens[token.address.port_address()].append(token)
         self.__store.finish_process(job_id, metadata=dict(outputs=output_tokens))
 
     def execute_io(self, job_id: str, process: EntityDescription, inputs: dict[str, Any], outputs: dict[str, Any]) -> None:
