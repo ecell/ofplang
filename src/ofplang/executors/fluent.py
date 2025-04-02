@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from logging import getLogger
+from logging import getLogger, StreamHandler, Formatter
 
 import inspect
 from typing import Any
@@ -111,28 +111,33 @@ class TecanFluentController(ExecutorBase):
         self.__operator.put_nowait(job)
         return future
 
-    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str) -> dict:
+    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str, run_id: str) -> dict:
         logger.info(f"TecanFluentSimulator.execute <= [{process}] [{inputs}]")
         operation_id = self.store.create_operation(dict(process_id=job_id, name=process.type))
 
-        func_name = inspect.currentframe().f_code.co_qualname  # type: ignore[union-attr]
-        text = StringIO()  # for logging
-        text.write(f"{func_name}: process={str(process)}\n")
-        text.write(f"{func_name}: inputs={str(inputs)}\n")
-        text.write(f"{func_name}: job_id={job_id}\n")
-        self.store.log_operation_text(operation_id, text.getvalue(), "log.txt")
+        mylogger = getLogger(f"{run_id}.{operation_id}")
+        stream = StringIO()
+        mylogger.addHandler(StreamHandler(stream))
+        
+        mylogger.info(f"process={str(process)}")
+        mylogger.info(f"inputs={str(inputs)}")
+        mylogger.info(f"job_id={job_id}")
+        mylogger.info(f"run_id={run_id}")
+
+        self.store.set_operation_attribute(operation_id, "log", stream.getvalue())
 
         outputs = {}
 
         try:
-            outputs = await super().execute(model, process, inputs, job_id)
+            outputs = await super().execute(model, process, inputs, job_id, run_id)
         except ProcessNotSupportedError as err:  # noqa: F841
             outputs = await self.queue_operation(model, process.type, inputs, self.store.get_operation_uri(operation_id))
 
         logger.info(f"TecanFluentSimulator.execute => [{process}] [{outputs}]")
         self.store.finish_operation(operation_id)
 
-        text.write(f"{func_name}: outputs={str(outputs)}\n")
-        self.store.log_operation_text(operation_id, text.getvalue(), "log.txt")
+        mylogger.info(f"outputs={str(outputs)}")
+        self.store.set_operation_attribute(operation_id, "log", stream.getvalue())  # => process
+        self.artifact_store.log_text(stream.getvalue(), f"{self.store.get_operation_uri(operation_id)}/log.txt")
 
         return outputs

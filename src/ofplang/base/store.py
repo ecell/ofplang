@@ -4,23 +4,58 @@ from logging import getLogger
 
 import dataclasses
 import uuid
-from pathlib import Path, PurePath
+from pathlib import PurePath
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 import copy
+from tempfile import NamedTemporaryFile
 from datetime import datetime
 from typing import Any, ValuesView
+
 import requests
 
+from .utils import dumps_params
 from .protocol import EntityDescription, PortAddress
 
 logger = getLogger(__name__)
 
 
-@dataclasses.dataclass
-class Location:
-    id: str
-    uri: str
+class ArtifactStore(metaclass=ABCMeta):
+
+    def log_artifact(self, local_path: str, artifact_path: str | None = None, content_type: str = "text/plain") -> None:
+        """"""
+        pass
+
+    def log_text(self, text: str, artifact_file: str) -> None:
+        """"""
+        pass
+
+    def log_dict(self, dictionary: dict, artifact_file: str) -> None:
+        """"""
+        pass
+
+class MinioArtifactStore(ArtifactStore):
+
+    def __init__(self, endpoint: str, bucket_name: str = "develop", **kwargs) -> None:
+        import minio
+        self.__client = minio.Minio(endpoint, **kwargs)
+        self.__bucket_name = bucket_name
+        if not self.__client.bucket_exists(self.__bucket_name):
+            self.__client.make_bucket(self.__bucket_name)
+
+    def log_artifact(self, local_path: str, artifact_path: str | None = None, content_type: str = "text/plain") -> None:
+        artifact_path = artifact_path or local_path
+        _ = self.__client.fput_object(self.__bucket_name, artifact_path, local_path, content_type=content_type)
+
+    def log_text(self, text: str, artifact_file: str) -> None:
+        with NamedTemporaryFile('w+t', encoding='utf-8', delete=False) as f:
+            f.write(text)
+            f.flush()
+            self.log_artifact(f.name, artifact_file)
+
+    def log_dict(self, dictionary: dict, artifact_file: str) -> None:
+        assert artifact_file.endswith('.yml') or artifact_file.endswith('.yaml')
+        self.log_text(dumps_params(dictionary), artifact_file)
 
 class Handler:
 
@@ -45,7 +80,7 @@ class Handler:
     def finish_operation(self, operation_id: str, status: str, metadata: dict | None) -> None:
         pass
 
-    def log_operation_text(self, operation_id: str, text: str, artifact_file: str) -> None:
+    def set_operation_attribute(self, operation_id, attribute: str, value: str) -> None:
         pass
 
 class Store_(metaclass=ABCMeta):
@@ -98,29 +133,29 @@ class Store_(metaclass=ABCMeta):
 
 class Store(Store_):
 
-    def __init__(self, path: Path | None = None) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.__root = path or (Path.cwd() / 'experiments')
-    
+
     def __create(self, prefix: str, *, id: str | None = None) -> str:
         id = id or str(uuid.uuid4())
-        path = self.__get_path(prefix, id)
-        assert not path.is_dir()
+        # path = self.__get_path(prefix, id)
+        # assert not path.is_dir()
         # path.mkdir(parents=True)
         return id
     
-    def __get_path(self, prefix: str, id: str) -> Path:
-        path = self.__root / f'{prefix}/{id}'
+    def __get_path(self, prefix: str, id: str) -> str:
+        path = f'{prefix}/{id}'
         return path
 
     def get_run_uri(self, id: str) -> str:
-        return self.__get_path('runs', id).as_uri()
+        # return self.__get_path('runs', id).as_uri()
+        return self.__get_path('run', id)
 
     def get_process_uri(self, id: str) -> str:
-        return self.__get_path('processes', id).as_uri()
+        return self.__get_path('processes', id)
 
     def get_operation_uri(self, id: str) -> str:
-        return self.__get_path('operations', id).as_uri()
+        return self.__get_path('operations', id)
     
     def create_run(self, metadata: dict | None) -> str:
         run_id = self.__create('runs')
@@ -149,8 +184,8 @@ class Store(Store_):
     def finish_operation(self, operation_id: str, status: str = 'completed', metadata: dict | None = None) -> None:
         [handler.finish_operation(operation_id, status, metadata) for handler in self.handlers]  # type: ignore[func-returns-value]
 
-    def log_operation_text(self, operation_id: str, text: str, artifact_file: str) -> None:
-        [handler.log_operation_text(operation_id, text, artifact_file) for handler in self.handlers]  # type: ignore[func-returns-value]
+    def set_operation_attribute(self, operation_id, attribute: str, value: str) -> None:
+        [handler.set_operation_attribute(operation_id, attribute, value) for handler in self.handlers]  # type: ignore[func-returns-value]
 
 TokenTuple = tuple[PortAddress, dict[str, Any]]
 @dataclasses.dataclass
@@ -239,7 +274,7 @@ class Tracking:
         self.__process_dependencies: dict[str, list[str]] = {}
         self.__process_operation_map: dict[str, list[str]] = defaultdict(list)
     
-    def create_run(self, project_id: int, user_id: int, checksum: str, file_name: str = 'dummy') -> int:
+    def create_run(self, project_id: int, user_id: int, checksum: str = '', file_name: str = 'dummy') -> int:
         response = requests.post(
             url=f'{self.__url}/runs/',
             data={
@@ -255,8 +290,9 @@ class Tracking:
         self.__run_id = db_id
         return db_id
 
-    def start_run(self, storage_address: str = '', checksum: str = '') -> None:
+    def start_run(self, storage_address: str = '', file_name: str = '', checksum: str = '') -> None:
         requests.patch(url=f'{self.__url}/runs/{self.__run_id}', data={"attribute": "storage_address", "new_value": storage_address}, verify=False)
+        requests.patch(url=f'{self.__url}/runs/{self.__run_id}', data={"attribute": "file_name", "new_value": file_name}, verify=False)
         requests.patch(url=f'{self.__url}/runs/{self.__run_id}', data={"attribute": "checksum", "new_value": checksum}, verify=False)
 
         run_start_time = datetime.now().isoformat()
@@ -340,14 +376,14 @@ class Tracking:
 
         # self.__last_operation_id = operation_id
 
-    def get_operation_log(self, operation_id: str) -> str:
+    def get_operation_attribute(self, operation_id: str, attribute: str) -> str:
         db_id = self.__operation_id_map[operation_id]
         response = requests.get(url=f'{self.__url}/operations/{db_id}', verify=False)
-        return response.json()["log"]
+        return response.json()[attribute]
 
-    def set_operation_log(self, operation_id: str, text: str) -> None:
+    def set_operation_attribute(self, operation_id: str, attribute: str, value: str) -> None:
         db_id = self.__operation_id_map[operation_id]
-        requests.patch(url=f'{self.__url}/operations/{db_id}', data={"attribute": "log", "new_value": text}, verify=False)
+        requests.patch(url=f'{self.__url}/operations/{db_id}', data={"attribute": attribute, "new_value": value}, verify=False)
 
 class TrackingHandler(Handler):
 
@@ -359,8 +395,9 @@ class TrackingHandler(Handler):
         return self.__tracking
 
     def create_run(self, run_id: str, storage_address: str, metadata: dict | None) -> None:
+        assert metadata is not None and 'file_name' in metadata
         assert metadata is not None and 'checksum' in metadata
-        self.__tracking.start_run(storage_address, metadata['checksum'])
+        self.__tracking.start_run(storage_address, metadata['file_name'], metadata['checksum'])
 
     def finish_run(self, run_id: str, status: str, metadta: dict | None) -> None:
         self.__tracking.finish_run(status)
@@ -381,7 +418,5 @@ class TrackingHandler(Handler):
     def finish_operation(self, operation_id: str, status: str, metadata: dict | None) -> None:
         self.__tracking.finish_operation(operation_id, status)
 
-    def log_operation_text(self, operation_id: str, text: str, artifact_file: str) -> None:
-        if PurePath(artifact_file) != PurePath('./log.txt'):
-            return
-        self.__tracking.set_operation_log(operation_id, text)
+    def set_operation_attribute(self, operation_id, attribute: str, value: str) -> None:
+        self.__tracking.set_operation_attribute(operation_id, attribute, value)

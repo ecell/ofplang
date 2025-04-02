@@ -71,14 +71,20 @@ class Protocol:
         else:
             raise TypeError(f"Invalid type [{type(file)}]")
 
+    @property
+    def name(self) -> str:
+        return self.__data.get('name', '')
+
     def md5(self) -> str:
-        f = io.StringIO()
-        self.__save(f)
-        s = f.getvalue().encode('utf-8')
         md5_hash = hashlib.md5()
-        md5_hash.update(s)
+        md5_hash.update(self.dumps().encode('utf-8'))
         return md5_hash.hexdigest()
 
+    def dumps(self) -> str:
+        f = io.StringIO()
+        self.__save(f)
+        return f.getvalue()
+    
     def dump(self) -> None:
         self.save(sys.stdout)
 

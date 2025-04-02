@@ -3,7 +3,7 @@
 from logging import getLogger
 
 from .protocol import EntityDescription
-from .store import Store
+from .store import Store, ArtifactStore
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -17,18 +17,28 @@ class Executor:
     def __init__(self) -> None:
         self.__store: Store | None = None
     
-    def set_store(self, store: Store) -> None:
-        self.__store = store
-    
     @property
     def store(self) -> Store:
         assert self.__store is not None
         return self.__store
+
+    @store.setter
+    def store(self, store: Store) -> None:
+        self.__store = store
+    
+    @property
+    def artifact_store(self) -> ArtifactStore:
+        assert self.__artifact_store is not None
+        return self.__artifact_store
+
+    @artifact_store.setter
+    def artifact_store(self, artifact_store: ArtifactStore) -> None:
+        self.__artifact_store = artifact_store
     
     def initialize(self) -> None:
         pass
 
-    async def __call__(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str, outputs_training: dict | None = None) -> tuple[str, EntityDescription, dict]:
+    async def __call__(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str, run_id: str, outputs_training: dict | None = None) -> tuple[str, EntityDescription, dict]:
         raise NotImplementedError()
 
 class ProcessNotSupportedError(RuntimeError):
@@ -36,13 +46,13 @@ class ProcessNotSupportedError(RuntimeError):
 
 class ExecutorBase(Executor):
 
-    async def __call__(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str, outputs_training: dict | None = None) -> tuple[str, EntityDescription, dict]:
+    async def __call__(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str, run_id: str, outputs_training: dict | None = None) -> tuple[str, EntityDescription, dict]:
         assert outputs_training is None  # deprecated
-        outputs = await self.execute(model, process, inputs, job_id)
+        outputs = await self.execute(model, process, inputs, job_id, run_id)
         result = (job_id, process, outputs)
         return result
     
-    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str) -> dict:
+    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str, run_id: str) -> dict:
         # logger.info(f"execute: {(process, inputs)}")
 
         outputs = {}

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from logging import getLogger
+from logging import getLogger, StreamHandler, FileHandler, INFO, Formatter
 
 import dataclasses
 import inspect
@@ -16,7 +16,7 @@ from .protocol import PortAddress, Protocol, EntityDescription
 from .model import UntypedProcess, Model
 from .definitions import Definitions
 from .executor import Executor
-from .store import Store
+from .store import Store, ArtifactStore
 
 logger = getLogger(__name__)
 
@@ -52,7 +52,7 @@ class StatusEnum(IntEnum):
 
 class Runner:
 
-    def __init__(self, protocol: str | Protocol, definitions: str | Definitions, executor: Executor | None = None, store: Store | None = None) -> None:
+    def __init__(self, protocol: str | Protocol, definitions: str | Definitions, executor: Executor | None = None, store: Store | None = None, artifact_store: ArtifactStore | None = None) -> None:
         definitions = definitions if isinstance(definitions, Definitions) else Definitions(definitions)
         protocol = protocol if isinstance(protocol, Protocol) else Protocol(protocol)
 
@@ -63,6 +63,10 @@ class Runner:
         self.__executor = executor
 
         self.__store = store or Store()
+        self.__artifact_store = artifact_store or ArtifactStore()
+
+        self.__run_id = None
+        self.__logger = None
 
     @property
     def executor(self) -> Executor | None:
@@ -127,24 +131,38 @@ class Runner:
     def execute_io(self, job_id: str, process: EntityDescription, inputs: dict[str, Any], outputs: dict[str, Any]) -> None:
         #XXX: input/output are not executed by Executor
         operation_id = self.__store.create_operation(dict(process_id=job_id, name=process.type))
-        func_name = inspect.currentframe().f_code.co_qualname  # type: ignore[union-attr]
-        text = StringIO()  # for logging
-        text.write(f"{func_name}: process={str(process)}\n")
-        text.write(f"{func_name}: inputs={str(inputs)}\n")
-        text.write(f"{func_name}: job_id={job_id}\n")
-        text.write(f"{func_name}: outputs={str(outputs)}\n")
-        self.__store.log_operation_text(operation_id, text.getvalue(), "log.txt")
+
+        mylogger = getLogger(f"{self.__run_id}.{operation_id}")
+        stream = StringIO()
+        mylogger.addHandler(StreamHandler(stream))
+        mylogger.info(f"process={str(process)}")
+        mylogger.info(f"inputs={str(inputs)}")
+        mylogger.info(f"job_id={job_id}")
+        mylogger.info(f"run_id={self.__run_id}")
+        mylogger.info(f"outputs={str(outputs)}")
+
+        self.__store.set_operation_attribute(operation_id, "log", stream.getvalue())
+        self.__artifact_store.log_text(stream.getvalue(), f"{self.__store.get_operation_uri(operation_id)}/log.txt")
         self.__store.finish_operation(operation_id)
 
     async def run(self, inputs: dict, *, executor: Executor | None = None) -> dict[str, Any]:
         executor = executor or self.__executor
         assert executor is not None
 
-        run_id = self.__store.create_run({'checksum': self.__model.protocol.md5()})
+        self.__run_id = self.__store.create_run({'file_name': self.__model.protocol.name, 'checksum': self.__model.protocol.md5()})
+
+        self.__logger = getLogger(self.__run_id)
+        self.__logger.setLevel(INFO)
+        stream = StringIO()
+        self.__logger.addHandler(StreamHandler(stream))
+
+        self.__artifact_store.log_text(self.__model.protocol.dumps(), f"{self.__store.get_run_uri(self.__run_id)}/protocol.yaml")
+        self.__artifact_store.log_dict(inputs, f"{self.__store.get_run_uri(self.__run_id)}/inputs.yaml")
 
         self.clear_tokens()
         executor.initialize()
-        executor.set_store(self.__store)
+        executor.store = self.__store
+        executor.artifact_store = self.__artifact_store
 
         input_tokens: list[Token] = []
         input_inputs = {token.address.port_id: token.value for token in input_tokens}
@@ -167,7 +185,7 @@ class Runner:
             self.transmit_token()
             jobs = self.list_jobs()
 
-            tasks.extend([asyncio.create_task(executor(self.model, process.asentitydesc(), inputs, job_id)) for job_id, process, inputs in jobs])
+            tasks.extend([asyncio.create_task(executor(self.model, process.asentitydesc(), inputs, job_id, self.__run_id)) for job_id, process, inputs in jobs])
             done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
             for job_done in done:
                 self.complete_job(*job_done.result())
@@ -189,9 +207,13 @@ class Runner:
         self.execute_io(job_id, output_process, output_inputs, output_outputs)
         self.complete_job(job_id, output_process, output_outputs)
 
-        self.__store.finish_run(run_id)
+        outputs = {token.address.port_id: token.value for token in output_tokens}
+        self.__artifact_store.log_dict(outputs, f"{self.__store.get_run_uri(self.__run_id)}/outputs.yaml")
+        self.__artifact_store.log_text(stream.getvalue(), f"{self.__store.get_run_uri(self.__run_id)}/log.txt")
+        self.__logger = None
+        self.__store.finish_run(self.__run_id)
 
-        return {token.address.port_id: token.value for token in output_tokens}
+        return outputs
 
     def run_sync(self, inputs: dict, *, executor: Executor | None = None) -> dict[str, Any]:
         return asyncio.run(self.run(inputs, executor=executor))
