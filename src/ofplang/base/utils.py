@@ -27,3 +27,12 @@ def dumps_params(obj: dict) -> None:
     s = io.StringIO()
     dump_params(obj, s)
     return s.getvalue()
+
+def join_and(strings: list[str]) -> str:
+    assert len(strings) > 0
+    if len(strings) == 1:
+        return strings[0]
+    elif len(strings) == 2:
+        return f"{strings[0]} and {strings[1]}"
+    else:
+        return f"{', '.join(strings[: -1])}, and {strings[-1]}"

@@ -1,0 +1,19 @@
+list(include('entity'), include('process'))
+---
+entity:
+  name: identifier()
+  base: identifier()
+  description: str(required=False)
+process:
+  name: identifier()
+  base: identifier()
+  description: str(required=False)
+  input: list(include('port'), required=False)
+  output: list(include('port'), required=False)
+port:
+  id: identifier()
+  type: str()
+  default: include('default', required=False)
+default:
+  value: any()
+  type: str()

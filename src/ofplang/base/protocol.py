@@ -75,6 +75,14 @@ class Protocol:
     def name(self) -> str:
         return self.__data.get('name', '')
 
+    @property
+    def author(self) -> str:
+        return self.__data.get('author', '')
+
+    @property
+    def description(self) -> str:
+        return self.__data.get('description', '')
+
     def md5(self) -> str:
         md5_hash = hashlib.md5()
         md5_hash.update(self.dumps().encode('utf-8'))

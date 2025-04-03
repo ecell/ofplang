@@ -1,0 +1,16 @@
+- name: Number
+  base: Data
+- name: Integer
+  base: Number
+- name: Float
+  base: Number
+- name: Boolean
+  base: Data
+- name: String
+  base: Data
+- name: Labware
+  base: Object
+- name: IOProcess
+  base: Process
+- name: BuiltinProcess
+  base: Process

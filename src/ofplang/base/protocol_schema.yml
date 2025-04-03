@@ -1,0 +1,25 @@
+name: str(required=False)
+author: str(required=False)
+description: str(required=False)
+contents:
+  input: list(include('port_w_default'))
+  output: list(include('port_wo_default'))
+  processes: list(include('process'))
+  connections: list(include('connection'))
+---
+port_wo_default:
+  id: identifier()
+  type: str()
+port_w_default:
+  id: identifier()
+  type: str()
+  default: include('default_value', required=False)
+process:
+  id: identifier()
+  type: identifier()
+connection:
+  input: list(identifier(), min=2, max=2)
+  output: list(identifier(), min=2, max=2)
+default_value:
+  value: any()
+  type: str()

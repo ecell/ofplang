@@ -3203,6 +3203,23 @@ h11 = ">=0.8"
 standard = ["colorama (>=0.4)", "httptools (>=0.6.3)", "python-dotenv (>=0.13)", "pyyaml (>=5.1)", "uvloop (>=0.14.0,!=0.15.0,!=0.15.1)", "watchfiles (>=0.13)", "websockets (>=10.4)"]
 
 [[package]]
+name = "yamale"
+version = "6.0.0"
+description = "A schema and validator for YAML."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "yamale-6.0.0-py3-none-any.whl", hash = "sha256:828c6cf2023101ec97d2759dfdc507e04ecfc0c6d39d500c00c37ec895ada53b"},
+    {file = "yamale-6.0.0.tar.gz", hash = "sha256:60be681f35e4939320b89de0d6f187ee0e5479ae7f7286b7f17f0859ddee4a66"},
+]
+
+[package.dependencies]
+pyyaml = "*"
+
+[package.extras]
+ruamel = ["ruamel.yaml"]
+
+[[package]]
 name = "yarl"
 version = "1.18.3"
 description = "Yet another URL library"
@@ -3380,4 +3397,4 @@ ifaddr = ">=0.1.7"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "3e046ac79370fcdd6d69767ad04f8f467bd54d9a0b31b5cb1791f54798c35162"
+content-hash = "f0dd1a65f3962db72341dd7b6f031bd45737816cdcdaf9fb616dcfd6ea19ac1b"

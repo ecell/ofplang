@@ -18,7 +18,7 @@ class Definitions:
         if file is not None:
             self.load(file, key)
 
-    def load(self, file: str | pathlib.Path | IO, key: str | None) -> None:
+    def load(self, file: str | pathlib.Path | IO, key: str | None = None) -> None:
         if isinstance(file, str):
             with pathlib.Path(file).open() as f:
                 self.__load(f, key)
@@ -52,6 +52,6 @@ class Definitions:
         return False
 
     def __iter__(self):
-        for data in reversed(self.__data):
+        for data in self.__data:
             for x in data:
                 yield deepcopy(x)

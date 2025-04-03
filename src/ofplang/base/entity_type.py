@@ -3,7 +3,7 @@
 from logging import getLogger
 
 from . import definitions
-from ._entity_type import EntityType, Undefined, Object, Data, Process, Spread, Optional, Array, check_entity_type, is_data, is_object, is_acceptable
+from ._entity_type import Entity, Object, Data, Process, Generic_, Spread, Optional, Array, check_entity_type, is_data, is_object, is_acceptable
 
 logger = getLogger(__name__)
 
@@ -32,7 +32,7 @@ class TypeManager:
         self.__primitive_types = {
             "Object": Object,
             "Data": Data,
-            "Undefined": Undefined,
+            # "Undefined": Undefined,
             "Process": Process,
             "Spread": Spread,
             "Optional": Optional,
@@ -83,3 +83,62 @@ class TypeManager:
 
     def issubclass(self, one: str, another: str) -> bool:
         return issubclass(self.eval_primitive_type(one), self.eval_primitive_type(another))
+
+from typing import _GenericAlias, Type, Any, get_origin, get_args
+
+class EntityTypeLoader:
+
+    BUILTIN_TYPES = dict(
+        Entity=Entity, Object=Object, Data=Data, Process=Process,
+        Spread=Spread, Optional=Optional, Array=Array,
+        )
+
+    def __init__(self, definitions: definitions.Definitions | None = None) -> None:
+        self.__definitions = definitions
+
+        self.__primitive_types = self.BUILTIN_TYPES.copy()
+        if self.__definitions is not None:
+            self.__load_primitive_types()
+    
+    def __load_primitive_types(self) -> None:
+        for x in self.__definitions:
+            name, base = x["name"].strip(), x["base"].strip()
+            assert name not in self.__primitive_types, f"Type '{name}' is already defined"
+            assert base in self.__primitive_types, f"The base type of '{name}', '{base}', is not defined."
+            self.__primitive_types[name] = type(name, (self.__primitive_types[base], ), {})
+
+    def __evaluate(self, expression: str) -> Any:
+        return eval(expression, self.__primitive_types, {})
+
+    def evaluate(self, expression: str) -> Type[Entity] | _GenericAlias:
+        obj = self.__evaluate(expression)
+        assert check_entity_type(obj), f"{repr(obj)}"
+        return obj  # type: ignore
+
+    def is_valid(self, expression: str, primitive: bool = False) -> bool:
+        try:
+            obj = self.__evaluate(expression)
+        except Exception as e:
+            logger.error(str(e))
+            return False
+        if not check_entity_type(obj):
+            return False
+        elif primitive and not isinstance(obj, type):
+            logger.error(f"'{expression}' is an entity type, but not primitive.")
+            return False
+        return True
+
+    def is_acceptable(self, sub: str, sup: str) -> bool:
+        return is_acceptable(self.evaluate(sub), self.evaluate(sup))
+
+    def is_data(self, expression: str) -> bool:
+        return is_data(self.evaluate(expression))
+
+
+if __name__ == "__main__":
+    loader = EntityTypeLoader()
+
+    print(repr(loader.evaluate("Object")))
+    print(repr(loader.evaluate("Process")))
+    print(repr(loader.evaluate("Array[Object]")))
+    print(repr(loader.evaluate("Spread[Array[Object]]")))

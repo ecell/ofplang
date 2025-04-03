@@ -5,6 +5,12 @@ description = ""
 authors = ["Kazunari Kaizu <kaizu@riken.jp>"]
 readme = "README.md"
 
+include = [
+    "src/ofplang/base/protocol_schema.yml",
+    "src/ofplang/base/definitions_schema.yml",
+    "src/ofplang/base/builtin_definitions.yaml",
+    ]
+
 [tool.poetry.dependencies]
 python = "^3.12"
 numpy = "^2.2.0"
@@ -21,6 +27,7 @@ python-dotenv = "^1.0.1"
 requests = "^2.32.3"
 types-requests = "^2.32.0.20250306"
 minio = "^7.2.15"
+yamale = "^6.0.0"
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.8.3"
 mypy = "^1.13.0"
