@@ -8,8 +8,9 @@ from collections import OrderedDict
 from ofplang.base.definitions import Definitions
 from ofplang.base.protocol import EntityDescription, PortAddress, Port, PortConnection, Protocol
 
-from ofplang.base.entity_type import TypeManager
-from ofplang.base.validate import check_definitions, check_protocol
+from ofplang.base.entity_type import EntityTypeLoader
+# from ofplang.base.entity_type import TypeManager
+# from ofplang.base.validate import check_definitions, check_protocol
 
 logger = getLogger(__name__)
 
@@ -98,15 +99,19 @@ class UntypedModel:
 class Model(UntypedModel):
 
     def __init__(self, protocol: Protocol, definitions: Definitions) -> None:
+        #XXX: Disabled once for refactoring
         # check inputs
-        check_definitions(definitions)
-        check_protocol(protocol, definitions)
+        # check_definitions(definitions)
+        # check_protocol(protocol, definitions)
 
         super().__init__(protocol, definitions)
-        self.__type_manager = TypeManager(definitions)
+        self.__loader = EntityTypeLoader(definitions)
     
-    def issubclass(self, one: str, another: str) -> bool:
-        return self.__type_manager.issubclass(one, another)
+    def issubclass(self, sub: str, sup: str) -> bool:
+        sub_, sup_ = self.__loader.evaluate(sub), self.__loader.evaluate(sup)
+        assert isinstance(sub_, type), repr(sub_)
+        assert isinstance(sup_, type), repr(sub_)
+        return issubclass(sub_, sup_)
     
-    def is_acceptable(self, one: str, another: str) -> bool:
-        return self.__type_manager.is_acceptable(one, another)
+    def is_acceptable(self, sub: str, sup: str) -> bool:
+        return self.__loader.is_acceptable(sub, sup)
