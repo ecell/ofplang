@@ -7,7 +7,7 @@ import yaml  # type: ignore
 from copy import deepcopy
 from typing import IO
 import io
-import importlib
+import importlib.resources
 import os.path
 
 logger = getLogger(__name__)
@@ -15,9 +15,11 @@ logger = getLogger(__name__)
 
 class Definitions:
 
+    BUILTIN_DEFINITIONS_FILE = os.path.join(importlib.resources.files("ofplang.base"), "builtin_definitions.yaml")
+
     def __init__(self, file: str | pathlib.Path | IO | None = None, key: str | None = None) -> None:
         self.__data: list = []
-        self.load(os.path.join(importlib.resources.files("ofplang.base"), "builtin_definitions.yaml"))
+        self.load(self.BUILTIN_DEFINITIONS_FILE)
         if file is not None:
             self.load(file, key)
 

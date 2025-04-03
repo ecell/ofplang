@@ -172,7 +172,7 @@ class Runner:
                 if port.default is None:
                     raise RuntimeError(f"Input [{address.port_id}] is missing.")
                 else:
-                    input_outputs[address.port_id] = port.default.copy()
+                    input_outputs[address.port_id] = dataclasses.asdict(port.default)
 
         input_process = EntityDescription("input", "IOProcess")
         job_id = self.start_job(input_process, input_tokens)

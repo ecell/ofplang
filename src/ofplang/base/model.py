@@ -101,8 +101,8 @@ class Model(UntypedModel):
     def __init__(self, protocol: Protocol, definitions: Definitions) -> None:
         #XXX: Disabled once for refactoring
         # check inputs
-        # check_definitions(definitions)
-        # check_protocol(protocol, definitions)
+        # validate_definitions_post(definitions)
+        # validate_protocol_post(protocol, definitions, EntityTypeLoader(definitions))
 
         super().__init__(protocol, definitions)
         self.__loader = EntityTypeLoader(definitions)

@@ -20,15 +20,20 @@ class EntityDescription:
     id: str
     type: str
 
-class PortAddress(NamedTuple):
-    process_id: str
-    port_id: str
+@dataclasses.dataclass
+class DefaultValue:
+    value: Any
+    type: str
 
 @dataclasses.dataclass
 class Port:
     id: str
     type: str
-    default: dict[str, Any] | None = None
+    default: DefaultValue | None = None
+
+class PortAddress(NamedTuple):
+    process_id: str
+    port_id: str
 
 @dataclasses.dataclass
 class PortConnection:
@@ -100,10 +105,10 @@ class Protocol:
         yaml.dump(self.__data, file)
 
     def input(self) -> Iterator[Port]:
-        return (Port(**value) for value in self.__contents.get("input", ()))
+        return (Port(id=value["id"], type=value["type"], default=(None if "default" not in value else DefaultValue(value=value["default"]["value"], type=value["default"]["type"]))) for value in self.__contents.get("input", ()))
 
     def output(self) -> Iterator[Port]:
-        return (Port(**value) for value in self.__contents.get("output", ()))
+        return (Port(id=value["id"], type=value["type"], default=(None if "default" not in value else DefaultValue(value=value["default"]["value"], type=value["default"]["type"]))) for value in self.__contents.get("output", ()))
 
     def processes(self) -> Iterator[EntityDescription]:
         return (EntityDescription(id=value["id"], type=value["type"]) for value in self.__contents.get("processes", ()))
