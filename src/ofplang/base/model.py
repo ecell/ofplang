@@ -6,7 +6,7 @@ from collections.abc import Iterable, Iterator
 from collections import OrderedDict
 
 from ofplang.base.definitions import Definitions
-from ofplang.base.protocol import EntityDescription, PortAddress, Port, PortConnection, Protocol
+from ofplang.base.protocol import EntityDescription, PortAddress, Port, DefaultValue, PortConnection, Protocol
 
 from ofplang.base.entity_type import EntityTypeLoader
 from ofplang.base.validate import validate_definitions_post, validate_protocol_post
@@ -22,13 +22,13 @@ class UntypedProcess:
 
     def input(self) -> Iterable[tuple[PortAddress, Port]]:
         input = {
-            PortAddress(self.__entity.id, port["id"]): Port(**port)
+            PortAddress(self.__entity.id, port["id"]): Port(port["id"], port["type"], DefaultValue(port["default"]["type"], port["default"]["value"]) if "default" in port else None)
             for port in self.__definition.get("input", [])}
         return input.items()
 
     def output(self) -> Iterable[tuple[PortAddress, Port]]:
         output = {
-            PortAddress(self.__entity.id, port["id"]): Port(**port)
+            PortAddress(self.__entity.id, port["id"]): Port(port["id"], port["type"], DefaultValue(port["default"]["type"], port["default"]["value"]) if "default" in port else None)
             for port in self.__definition.get("output", [])}
         return output.items()
 
