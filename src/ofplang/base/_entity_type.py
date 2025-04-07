@@ -11,7 +11,6 @@ logger = getLogger(__name__)
 
 
 class Entity(type): pass
-
 class Object(Entity): pass
 class Data(Entity): pass
 class Process(Entity): pass  #XXX
@@ -51,7 +50,7 @@ def check_entity_type(one: typing.Any) -> bool:
         return all(check_entity_type(x) for x in typing.get_args(one))
     return False
 
-def is_acceptable(sub, sup) -> bool:
+def is_acceptable(sub: typing.Any, sup: typing.Any) -> bool:
     """Check if sub is a subtype of sup for generic types."""
     # Union
     if is_union(sub):
@@ -81,34 +80,26 @@ def is_acceptable(sub, sup) -> bool:
             return issubclass(sub, sup)
     assert False, "Never get here."
 
-def is_object(one):
+def is_object(one: typing.Any) -> bool:
     if is_union(one) or is_generic(one):
         return any(is_object(x) for x in one.__args__)
     return issubclass(one, Object)
 
-def is_data(one):
+def is_data(one: typing.Any) -> bool:
     if is_union(one) or is_generic(one):
         return all(is_data(x) for x in one.__args__)
     return issubclass(one, Data)
 
-
-
-
-# def check_entity_type(one):
-#     if is_union(one) or is_generic(one):
-#         tuple(check_entity_type(x) for x in one.__args__)
-#     else:
-#         assert issubclass(one, (Entity, ))
-
-def to_str(one) -> str:
-    # Union
+def to_str(one: typing.Any) -> str:
     if is_union(one):
-        return "|".join(to_str(x) for x in one.__args__)
-    # typing._GenericAlias
-    if is_generic(one):
-        s = ",".join(to_str(x) for x in one.__args__)
-        s = f"{one.__origin__.__name__}[{s}]"
-        return s
+        return " | ".join(to_str(x) for x in typing.get_args(one))    
+    elif is_generic(one):
+        s = ", ".join(to_str(x) for x in typing.get_args(one))
+        origin = typing.get_origin(one)
+        assert issubclass(origin, Generic_), f"{origin}"
+        return f"{origin.__name__}[{s}]"
+
+    assert issubclass(one, Entity), f"{one}"
     return one.__name__
 
 
@@ -173,7 +164,7 @@ if __name__ == "__main__":
     assert is_object(Spread[Float | Spread[Labware]])
     assert is_data(Spread[Float | Array[Integer]])
 
-    assert to_str(Spread[Float | Array[Integer]]) == "Spread[Float|Array[Integer]]"
+    assert to_str(Spread[Float | Array[Integer]]) == "Spread[Float | Array[Integer]]"
 
     assert check_entity_type(Float | Integer)
     assert check_entity_type(Float | Array[Float])

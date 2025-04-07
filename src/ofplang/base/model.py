@@ -9,8 +9,7 @@ from ofplang.base.definitions import Definitions
 from ofplang.base.protocol import EntityDescription, PortAddress, Port, PortConnection, Protocol
 
 from ofplang.base.entity_type import EntityTypeLoader
-# from ofplang.base.entity_type import TypeManager
-# from ofplang.base.validate import check_definitions, check_protocol
+from ofplang.base.validate import validate_definitions_post, validate_protocol_post
 
 logger = getLogger(__name__)
 
@@ -99,14 +98,13 @@ class UntypedModel:
 class Model(UntypedModel):
 
     def __init__(self, protocol: Protocol, definitions: Definitions) -> None:
-        #XXX: Disabled once for refactoring
-        # check inputs
-        # validate_definitions_post(definitions)
-        # validate_protocol_post(protocol, definitions, EntityTypeLoader(definitions))
-
         super().__init__(protocol, definitions)
+
         self.__loader = EntityTypeLoader(definitions)
-    
+
+        validate_definitions_post(definitions, self.__loader)
+        validate_protocol_post(protocol, definitions, self.__loader)
+
     def issubclass(self, sub: str, sup: str) -> bool:
         sub_, sup_ = self.__loader.evaluate(sub), self.__loader.evaluate(sup)
         assert isinstance(sub_, type), repr(sub_)
