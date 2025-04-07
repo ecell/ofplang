@@ -8,20 +8,19 @@ import itertools
 from collections import defaultdict
 import keyword
 
+import importlib.resources
+import pathlib
+
+import yamale  # type: ignore
+from yamale.validators import DefaultValidators, Validator  # type: ignore
+
 from .utils import join_and
-from .entity_type import TypeManager, Process, EntityTypeLoader, Entity
+from .entity_type import Process, EntityTypeLoader
 from .definitions import Definitions
 from .protocol import Protocol, PortAddress
 
 logger = getLogger(__name__)
 
-
-import importlib.resources
-import os.path
-import pathlib
-
-import yamale
-from yamale.validators import DefaultValidators, Validator
 
 class Identifier(Validator):
     """Custom validator for identifier"""
@@ -41,7 +40,7 @@ def load_yaml(file: str | pathlib.Path | IO) -> tuple[list[tuple], list[str] | N
         with file.open() as f:
             content = f.read()
     elif isinstance(file, io.IOBase):
-        content = f.read()
+        content = file.read()
     else:
         raise TypeError(f"Invalid type [{type(file)}]")
 
@@ -56,7 +55,7 @@ def load_yaml(file: str | pathlib.Path | IO) -> tuple[list[tuple], list[str] | N
 def check_yaml_schema(filename: str, data: list[tuple]) -> list[str] | None:
     validators = DefaultValidators.copy()  # This is a dictionary
     validators[Identifier.tag] = Identifier
-    schema = yamale.make_schema(os.path.join(importlib.resources.files("ofplang.base"), filename), validators=validators)
+    schema = yamale.make_schema(str(importlib.resources.files("ofplang.base").joinpath(filename)), validators=validators)
 
     try:
         yamale.validate(schema, data)
@@ -148,10 +147,12 @@ def check_each_type(protocol: Protocol, loader: EntityTypeLoader) -> list[str] |
 
     return (None if len(error_messages) == 0 else error_messages)
 
+def one_another(x: str) -> str:
+    assert x in ("input", "output")
+    return ("input" if x == "output" else "output")
+
 def check_all_connection_ids_exist(protocol: Protocol, definitions: Definitions) -> list[str] | None:
     error_messages = []
-
-    one_another = lambda x: "input" if x == "output" else "output"
 
     process_ids = {}
     for key, ports in (("input", protocol.input()), ("output", protocol.output())):
@@ -206,7 +207,7 @@ def check_connection_integrity(protocol: Protocol, definitions: Definitions, loa
     for key, ports in (("input", protocol.input()), ("output", protocol.output())):
         for i, port in enumerate(ports):
             if len(addresses[PortAddress(key, port.id)]) > 1 and not (key == "input" and loader.is_data(port.type)):
-                err = f"{key}.{i}: The port '{port.id}' of user '{key}' has multiple connections, {join_and(addresses[PortAddress((key, port.id))])}."
+                err = f"{key}.{i}: The port '{port.id}' of user '{key}' has multiple connections, {join_and(addresses[PortAddress(key, port.id)])}."
                 logger.error(err)
                 error_messages.append(err)
             elif len(addresses[PortAddress(key, port.id)]) == 0:
@@ -219,7 +220,7 @@ def check_connection_integrity(protocol: Protocol, definitions: Definitions, loa
         for key in ("input", "output"):
             for portdef in xdef.get(key, ()):
                 if len(addresses[PortAddress(x.id, portdef["id"])]) > 1 and not (key == "output" and loader.is_data(portdef["type"])):
-                    err = f"processes.{i}: The port '{portdef["id"]}' of process '{x.id}' has multiple connections, {join_and(addresses[PortAddress((x.id, portdef["id"]))])}."
+                    err = f"processes.{i}: The port '{portdef["id"]}' of process '{x.id}' has multiple connections, {join_and(addresses[PortAddress(x.id, portdef["id"])])}."
                     logger.error(err)
                     error_messages.append(err)
                 elif len(addresses[PortAddress(x.id, portdef["id"])]) == 0 and "default" not in portdef:

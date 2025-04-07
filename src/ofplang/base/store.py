@@ -4,7 +4,6 @@ from logging import getLogger
 
 import dataclasses
 import uuid
-from pathlib import PurePath
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 import copy

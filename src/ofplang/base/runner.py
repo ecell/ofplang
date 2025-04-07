@@ -1,9 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from logging import getLogger, StreamHandler, FileHandler, INFO, Formatter
+from logging import getLogger, StreamHandler, INFO, Logger
 
 import dataclasses
-import inspect
 import pathlib
 from collections import defaultdict, deque
 from typing import Any, IO
@@ -65,8 +64,8 @@ class Runner:
         self.__store = store or Store()
         self.__artifact_store = artifact_store or ArtifactStore()
 
-        self.__run_id = None
-        self.__logger = None
+        self.__run_id: str | None = None
+        self.__logger: Logger | None = None
 
     @property
     def executor(self) -> Executor | None:
@@ -106,7 +105,7 @@ class Runner:
                     continue
                 # pop tokens here
                 input_tokens = [
-                    (self.__tokens[address].pop() if self.has_token(address) else Token(TokenAddress.instance(address), port.default or {}))  #XXX: port.default can be None
+                    (self.__tokens[address].pop() if self.has_token(address) else Token(TokenAddress.instance(address), dataclasses.asdict(port.default) if port.default is not None else {}))  #XXX: port.default can be None
                     for address, port in process.input()]
                 job_id = self.start_job(process.asentitydesc(), input_tokens)
                 jobs.append((job_id, process, {token.address.port_id: token.value for token in input_tokens}))

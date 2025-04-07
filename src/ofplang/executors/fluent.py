@@ -1,8 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from logging import getLogger, StreamHandler, Formatter
+from logging import getLogger, StreamHandler
 
-import inspect
 from typing import Any
 from io import StringIO
 import numpy

@@ -28,14 +28,14 @@ def is_union(one: typing.Any) -> bool:
     #XXX: typing.get_origin(Object | Data)=<class 'types.UnionType'>
     #XXX: Data | Array[Data] == typing.Union[Data, Array[Data]]: <class 'typing._UnionGenericAlias'>
     #XXX: typing.get_origin(Data | Array[Data])=typing.Union
-    return isinstance(one, types.UnionType) or isinstance(one, typing._UnionGenericAlias)
+    return isinstance(one, types.UnionType) or isinstance(one, typing._UnionGenericAlias)  # type: ignore[attr-defined]
 
 def is_generic(one: typing.Any) -> bool:
     #XXX: typing._UnionGenericAlias is typing._GenericAlias,
     #XXX: but get_origin returns typing.Union, which doesn't work with issubclass.
     return (
-        not isinstance(one, typing._UnionGenericAlias)
-        and isinstance(one, typing._GenericAlias)
+        not isinstance(one, typing._UnionGenericAlias)  # type: ignore[attr-defined]
+        and isinstance(one, typing._GenericAlias)  # type: ignore[attr-defined]
         and issubclass(typing.get_origin(one), Generic_)
     )
 

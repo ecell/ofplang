@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 from logging import getLogger
 
+from typing import _GenericAlias, Type, Any  # type: ignore[attr-defined]
+
 from . import definitions
-from ._entity_type import Entity, Object, Data, Process, Generic_, Spread, Optional, Array, check_entity_type, is_data, is_object, is_acceptable
+from ._entity_type import Entity, Object, Data, Process, Spread, Optional, Array, check_entity_type, is_data, is_object, is_acceptable
 
 logger = getLogger(__name__)
 
@@ -63,7 +65,7 @@ class TypeManager:
     def eval_primitive_type(self, expression: str) -> type:
         assert self.has_definition(expression), f"Unknown entity type given [{expression}]."
         entity_type = self.__primitive_types[expression]
-        assert issubclass(entity_type, (EntityType, )), f"[{expression}] is not an entity type."
+        assert issubclass(entity_type, (Entity, )), f"[{expression}] is not an entity type."
         return entity_type
 
     def eval_entity_type(self, expression: str) -> type:
@@ -84,8 +86,6 @@ class TypeManager:
     def issubclass(self, one: str, another: str) -> bool:
         return issubclass(self.eval_primitive_type(one), self.eval_primitive_type(another))
 
-from typing import _GenericAlias, Type, Any, get_origin, get_args
-
 class EntityTypeLoader:
 
     BUILTIN_TYPES = dict(
@@ -97,15 +97,15 @@ class EntityTypeLoader:
         self.__definitions = definitions
 
         self.__primitive_types = self.BUILTIN_TYPES.copy()
-        if self.__definitions is not None:
-            self.__load_primitive_types()
+        self.__load_primitive_types()
     
     def __load_primitive_types(self) -> None:
-        for x in self.__definitions:
-            name, base = x["name"].strip(), x["base"].strip()
-            assert name not in self.__primitive_types, f"Type '{name}' is already defined"
-            assert base in self.__primitive_types, f"The base type of '{name}', '{base}', is not defined."
-            self.__primitive_types[name] = type(name, (self.__primitive_types[base], ), {})
+        if self.__definitions is not None:
+            for x in self.__definitions:
+                name, base = x["name"].strip(), x["base"].strip()
+                assert name not in self.__primitive_types, f"Type '{name}' is already defined"
+                assert base in self.__primitive_types, f"The base type of '{name}', '{base}', is not defined."
+                self.__primitive_types[name] = type(name, (self.__primitive_types[base], ), {})
 
     def __evaluate(self, expression: str) -> Any:
         return eval(expression, self.__primitive_types, {})

@@ -23,7 +23,7 @@ def load_params(stream) -> dict:
 def dump_params(obj: dict, stream) -> None:
     yaml.dump(obj, stream, indent=2)
 
-def dumps_params(obj: dict) -> None:
+def dumps_params(obj: dict) -> str:
     s = io.StringIO()
     dump_params(obj, s)
     return s.getvalue()

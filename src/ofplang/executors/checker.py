@@ -14,7 +14,7 @@ class TypeCheckError(RuntimeError):
 
 class TypeChecker(ExecutorBase):
 
-    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str) -> dict:
+    async def execute(self, model: 'Model', process: EntityDescription, inputs: dict, job_id: str, run_id: str) -> dict:
         definition = model.get_definition_by_name(model.get_by_id(process.id).type)
         for port in definition.get('input', []):
             if port['id'] not in inputs:

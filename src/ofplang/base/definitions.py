@@ -8,14 +8,13 @@ from copy import deepcopy
 from typing import IO
 import io
 import importlib.resources
-import os.path
 
 logger = getLogger(__name__)
 
 
 class Definitions:
 
-    BUILTIN_DEFINITIONS_FILE = os.path.join(importlib.resources.files("ofplang.base"), "builtin_definitions.yaml")
+    BUILTIN_DEFINITIONS_FILE = str(importlib.resources.files("ofplang.base").joinpath("builtin_definitions.yaml"))
 
     def __init__(self, file: str | pathlib.Path | IO | None = None, key: str | None = None) -> None:
         self.__data: list = []
