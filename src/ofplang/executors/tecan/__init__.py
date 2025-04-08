@@ -90,7 +90,7 @@ def loadasc(ascfile, delim="\t"):
     data = numpy.asarray([[float(x) for x in line.split(delim)] for line in data])
     return data.T, (header, footer)
 
-def read_absorbance_3colors():
+def read_absorbance_3colors(fluent):
     call_method(fluent, "ReadAbsorbance")
 
     ascpath = pathlib.Path(MAGELLAN_PATH)
@@ -102,8 +102,13 @@ def read_absorbance_3colors():
     data, (header, footer) = loadasc(ascfile)
     return (data, ), {'header': header, 'footer': footer, 'filename': str(ascfile)}
 
-def dispense_liquid_96wells(*, data, channel=0, dropchip=1):
+def dispense_liquid_96wells(fluent, *, data, channel=0, dropchip=1):
     filename = f"{FLUENT_IO_PATH}\\VARS.csv"
+
+    channelmap = {'A1': 0, 'B1': 1, 'A2': 2, 'B2': 3, 'A3': 4, 'B3': 5}
+    if isinstance(channel, str):
+        channel = channelmap[channel]
+    assert isinstance(channel, int) and 0 <= channel and channel < 6
 
     logger.info(f"Writing file [{filename}]...")
     with open(filename, 'w') as f:
@@ -140,7 +145,7 @@ def loadattr(attrfile):
     data = numpy.asarray(data)
     return data, (header, )
 
-def measure_volume_96wells():
+def measure_volume_96wells(fluent):
     call_method(fluent, "MeasureVolume96Wells")
 
     filename = f"{FLUENT_IO_PATH}\\WellVolume.csv"
@@ -151,9 +156,11 @@ def measure_volume_96wells():
     data, (header, ) = loadattr(attrfile)
     return (data, ), {'header': header, 'filename': str(attrfile)}
 
-
-# fluent = Fluent("127.0.0.1", 50052)
-fluent = Fluent.discover(10)
-fluent.start_fluent()
-fluent.close_method()
-wait_until(fluent, "RunModeRunFinished", "EditMode", max_iter=100)
+def setup() -> Fluent | None:
+    # fluent = Fluent("127.0.0.1", 50052)
+    # fluent = Fluent("10.5.1.22", 50052)
+    fluent = Fluent.discover(15)
+    fluent.start_fluent()
+    fluent.close_method()
+    wait_until(fluent, "RunModeRunFinished", "EditMode", max_iter=100)
+    return fluent

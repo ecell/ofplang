@@ -12,15 +12,17 @@ from ..base.model import Model
 from ..base.protocol import EntityDescription
 
 from .simulator import DeckEditor, DeckView
+from .tecan import Fluent
 
 logger = getLogger(__name__)
 
 
 class Operator:
 
-    def __init__(self, simulation: bool = True, deck: DeckEditor | None = None) -> None:
-        self.simulation = simulation
+    def __init__(self, simulation: bool = True, deck: DeckEditor | None = None, fluent: Fluent | None = None) -> None:
+        self.simulation = simulation or fluent is None
         self.__deck = deck or DeckEditor()
+        self.__fluent = fluent
         self.__OPERATIONS_QUEUED: 'asyncio.Queue[dict]' = asyncio.Queue()
 
     def start(self) -> asyncio.Task:
@@ -68,7 +70,7 @@ class Operator:
                 await asyncio.sleep(10)
                 data = numpy.zeros(96, dtype=float)
             else:
-                (data, ), _ = tecan.read_absorbance_3colors(**params)
+                (data, ), _ = tecan.read_absorbance_3colors(self.__fluent, **params)
 
             assert inputs["in1"]["type"] == "Plate96"
             outputs["value"] = {"value": data, "type": "Spread[Array[Float]]"}
@@ -84,7 +86,7 @@ class Operator:
             if self.simulation:
                 await asyncio.sleep(15)
             else:
-                _ = tecan.dispense_liquid_96wells(**params)
+                _ = tecan.dispense_liquid_96wells(self.__fluent, **params)
             
             outputs["out1"] = inputs["in1"]
             self.__deck.dispense_liquid_96wells(f"50ml FalconTube 6pos[{channel+1:03d}]", '7mm Nest_Riken[005]', volume)
