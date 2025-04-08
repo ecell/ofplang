@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from logging import getLogger, StreamHandler, INFO, Logger
+from logging import getLogger, StreamHandler, INFO, Logger, Formatter
 
 import dataclasses
 import pathlib
@@ -133,7 +133,10 @@ class Runner:
 
         mylogger = getLogger(f"{self.__run_id}.{operation_id}")
         stream = StringIO()
-        mylogger.addHandler(StreamHandler(stream))
+        format = "%(levelname)-9s  %(asctime)s [%(filename)s:%(lineno)d] %(message)s"
+        handler = StreamHandler(stream)
+        handler.setFormatter(Formatter(format))
+        mylogger.addHandler(handler)
         mylogger.info(f"process={str(process)}")
         mylogger.info(f"inputs={str(inputs)}")
         mylogger.info(f"job_id={job_id}")
@@ -141,7 +144,7 @@ class Runner:
         mylogger.info(f"outputs={str(outputs)}")
 
         self.__store.set_operation_attribute(operation_id, "log", stream.getvalue())
-        self.__artifact_store.log_text(stream.getvalue(), f"{self.__store.get_operation_uri(operation_id)}/log.txt")
+        self.__artifact_store.log_text(stream.getvalue(), f"{self.__store.get_operation_uri(f"{self.__run_id}_{operation_id}")}/log.txt")
         self.__store.finish_operation(operation_id)
 
     async def run(self, inputs: dict, *, executor: Executor | None = None) -> dict[str, Any]:
@@ -153,7 +156,10 @@ class Runner:
         self.__logger = getLogger(self.__run_id)
         self.__logger.setLevel(INFO)
         stream = StringIO()
-        self.__logger.addHandler(StreamHandler(stream))
+        format = "%(levelname)-9s  %(asctime)s [%(filename)s:%(lineno)d] %(message)s"
+        handler = StreamHandler(stream)
+        handler.setFormatter(Formatter(format))
+        self.__logger.addHandler(handler)
 
         self.__artifact_store.log_text(self.__model.protocol.dumps(), f"{self.__store.get_run_uri(self.__run_id)}/protocol.yaml")
         self.__artifact_store.log_dict(inputs, f"{self.__store.get_run_uri(self.__run_id)}/inputs.yaml")

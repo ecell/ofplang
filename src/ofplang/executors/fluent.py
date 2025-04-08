@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from logging import getLogger, StreamHandler
+from logging import getLogger, StreamHandler, Formatter
 
 from typing import Any
 from io import StringIO
@@ -116,7 +116,10 @@ class TecanFluentController(ExecutorBase):
 
         mylogger = getLogger(f"{run_id}.{operation_id}")
         stream = StringIO()
-        mylogger.addHandler(StreamHandler(stream))
+        format = "%(levelname)-9s  %(asctime)s [%(filename)s:%(lineno)d] %(message)s"
+        handler = StreamHandler(stream)
+        handler.setFormatter(Formatter(format))
+        mylogger.addHandler(handler)
         
         mylogger.info(f"process={str(process)}")
         mylogger.info(f"inputs={str(inputs)}")
