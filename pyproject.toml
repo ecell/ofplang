@@ -1,52 +1,31 @@
-[tool.poetry]
+[project]
 name = "ofplang"
 version = "0.1.0"
-description = ""
-authors = ["Kazunari Kaizu <kaizu@riken.jp>"]
+description = "Add your description here"
 readme = "README.md"
-
 include = [
     "src/ofplang/base/protocol_schema.yml",
     "src/ofplang/base/definitions_schema.yml",
     "src/ofplang/base/builtin_definitions.yaml",
-    ]
+]
+requires-python = ">=3.11.3"
+dependencies = [
+    "numpy>=2.3.0",
+    "pyyaml>=6.0.2",
+    "sila2>=0.12.2",
+    "yamale>=6.0.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-numpy = "^2.2.0"
-scipy = "^1.14.1"
-pyyaml = "^6.0.2"
-scikit-learn = "^1.6.0"
-sila2 = "^0.12.2"
-optuna = "^4.1.0"
-matplotlib = "^3.9.3"
-click = "^8.1.7"
+[project.optional-dependencies]
+store = [
+    "minio>=7.2.15",
+    "requests>=2.32.4",
+]
 
-gpytorch = "^1.13"
-python-dotenv = "^1.0.1"
-requests = "^2.32.3"
-types-requests = "^2.32.0.20250306"
-minio = "^7.2.15"
-yamale = "^6.0.0"
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.8.3"
-mypy = "^1.13.0"
-pytest-env = "^1.1.5"
-pytest = "^8.3.4"
-
-types-pyyaml = "^6.0.12.20240917"
-[tool.poetry.group.app.dependencies]
-fastapi = "^0.115.8"
-
-discord-py = "^2.4.0"
-uvicorn = "^0.34.0"
-python-multipart = "^0.0.20"
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
-ofplang = 'ofplang.scripts.cli:main'
-
-[tool.ruff.lint]
-ignore = ["E701"]
+[dependency-groups]
+dev = [
+    "mypy>=1.16.1",
+    "pytest>=8.4.0",
+    "pytest-env>=1.1.5",
+    "ruff>=0.12.0",
+]
