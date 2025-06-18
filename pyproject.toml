@@ -28,6 +28,8 @@ dev = [
     "pytest>=8.4.0",
     "pytest-env>=1.1.5",
     "ruff>=0.12.0",
+    "types-pyyaml>=6.0.12.20250516",
+    "types-requests>=2.32.4.20250611",
 ]
 
 [tool.ruff.lint]
