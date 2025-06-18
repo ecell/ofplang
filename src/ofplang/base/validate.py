@@ -86,7 +86,7 @@ def check_unique_ids(protocol: list[tuple]) -> list[str] | None:
         ids = [x["id"] for x in data[key]]
         for i, x in enumerate(data[key]):
             if ids.count(x["id"]) != 1:
-                err = f"{key}.{i}.id: The given id '{x["id"]}' is not unique."
+                err = f"{0}.{1}.id: The given id '{2}' is not unique.".format(key, i, x["id"])
                 logger.error(err)
                 error_messages.append(err)
     
@@ -110,12 +110,12 @@ def check_definitions_type(definitions: Definitions, loader: EntityTypeLoader) -
                 continue
             for j, port in enumerate(xdef[key]):
                 if not loader.is_valid(port["type"]):
-                    err = f"{i}.{key}.{j}.type: The type of '{xdef["name"]}.{port["id"]}', '{port["type"]}', is invalid."
+                    err = "{0}.{1}.{2}.type: The type of '{3}.{4}', '{5}', is invalid.".format(i, key, j, xdef["name"], port["id"], port["type"])
                     logger.error(err)
                     error_messages.append(err)
                 if 'default' in port:
                     if not loader.is_valid(port["default"]["type"]):
-                        err = f"{i}.{key}.{j}.default.type: The type '{port["default"]["type"]}' is invalid [{xdef["name"]}.{port["id"]}]."
+                        err = "{0}.{1}.{2}.default.type: The type '{3}' is invalid [{4}.{5}].".format(i, key, j, port["default"]["type"], xdef["name"], port["id"])
                         logger.error(err)
                         error_messages.append(err)
 
@@ -220,11 +220,11 @@ def check_connection_integrity(protocol: Protocol, definitions: Definitions, loa
         for key in ("input", "output"):
             for portdef in xdef.get(key, ()):
                 if len(addresses[PortAddress(x.id, portdef["id"])]) > 1 and not (key == "output" and loader.is_data(portdef["type"])):
-                    err = f"processes.{i}: The port '{portdef["id"]}' of process '{x.id}' has multiple connections, {join_and(addresses[PortAddress(x.id, portdef["id"])])}."
+                    err = f"processes.{0}: The port '{1}' of process '{2}' has multiple connections, {3}.".format(i, portdef["id"], x.id, join_and(addresses[PortAddress(x.id, portdef["id"])]))
                     logger.error(err)
                     error_messages.append(err)
                 elif len(addresses[PortAddress(x.id, portdef["id"])]) == 0 and "default" not in portdef:
-                    err = f"processes.{i}: The port '{portdef["id"]}' of process '{x.id}' has no connection."
+                    err = "processes.{0}: The port '{1}' of process '{2}' has no connection.".format(i, portdef["id"], x.id)
                     logger.error(err)
                     error_messages.append(err)
 
@@ -247,7 +247,7 @@ def validate_definitions_pre(definitions_file: str | pathlib.Path | IO) -> list[
 
         for i, xdef in enumerate(definitions_[0][0]):
             if xdef["base"] not in EntityTypeLoader.BUILTIN_TYPES and xdef["base"] not in defined_types:
-                error_messages = [f"{i}.base: '{xdef["base"]}' is undefined."]
+                error_messages = ["{0}.base: '{1}' is undefined.".format(i, xdef["base"])]
                 logger.error(error_messages[0])
                 return error_messages
 

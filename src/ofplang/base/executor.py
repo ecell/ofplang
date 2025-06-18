@@ -68,7 +68,7 @@ class ExecutorBase(Executor):
             elif model.issubclass(model.get_by_id(process.id).type, "Switch"):
                 condition = inputs["condition"]["value"]
                 out1, out2 = (inputs["in1"]["value"], None) if condition else (None, inputs["in1"]["value"])
-                outputs = {"out1": {"value": out1, "type": f"Optional[{inputs["in1"]["type"]}]"}, "out2": {"value": out2, "type": f"Optional[{inputs["in1"]["type"]}]"}}
+                outputs = {"out1": {"value": out1, "type": f'Optional[{inputs["in1"]["type"]}]'}, "out2": {"value": out2, "type": f'Optional[{inputs["in1"]["type"]}]'}}
             elif model.issubclass(model.get_by_id(process.id).type, "Gather"):
                 definition = model.get_definition_by_name(model.get_by_id(process.id).type)
                 in1, in2 = inputs["in1"]["value"], inputs["in2"]["value"]

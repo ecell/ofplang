@@ -144,7 +144,7 @@ class Runner:
         mylogger.info(f"outputs={str(outputs)}")
 
         self.__store.set_operation_attribute(operation_id, "log", stream.getvalue())
-        self.__artifact_store.log_text(stream.getvalue(), f"{self.__store.get_operation_uri(f"{self.__run_id}_{operation_id}")}/log.txt")
+        self.__artifact_store.log_text(stream.getvalue(), f'{self.__store.get_operation_uri(f"{self.__run_id}_{operation_id}")}/log.txt')
         self.__store.finish_operation(operation_id)
 
     async def run(self, inputs: dict, *, executor: Executor | None = None) -> dict[str, Any]:
