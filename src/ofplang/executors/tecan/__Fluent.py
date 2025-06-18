@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# mypy: disable-error-code="attr-defined"
 
 """
 This file is derived from [Python/src/tecan/__Fluent.py], originally part of the [fluent-sila2-connector] project,
@@ -16,6 +17,7 @@ Wrapper for the SiLAFluentController.
 """
 
 from logging import getLogger
+from typing import Any
 from enum import Enum
 
 from sila2.client import SilaClient
@@ -30,7 +32,7 @@ class Fluent:
     Python wrapper to remote Fluent.
     """
 
-    def __init__(self, server_ip: str = "127.0.0.1", server_port: int = 50052, client: SilaClient = None, **kwargs):
+    def __init__(self, server_ip: str = "127.0.0.1", server_port: int = 50052, client: SilaClient | None = None, **kwargs):
         """Connects to a SilaFluentServer an creates a Fluent object able to control an instance of FluentControl.
         :param server_ip:
         :type server_ip: str
@@ -272,7 +274,7 @@ class Fluent:
         self.__client.SilaFluentController.FinishExecution()
         logger.info("successfully finished execution.")
 
-    def start_fluent(self, username: str = None, password: str = None, simulation_mode=False):
+    def start_fluent(self, username: str | None = None, password: str | None = None, simulation_mode=False):
         """Starts Fluent Controll or attaches to a running instance.
         :param username: Your Fluent USM username. When set, password has to be set as well., defaults to None
         :type username: str, optional
@@ -336,9 +338,9 @@ class Fluent:
     lastError = property(__lastError, doc="Gets the last error message")
 
     @staticmethod
-    def discover(timeout: float = 0):
+    def discover(timeout: float = 0, **kwargs):
         """Uses zeroconf to find a server that is running in the local network"""
-        browser = SilaDiscoveryBrowser()
+        browser = SilaDiscoveryBrowser(**kwargs)
         client = browser.find_server(timeout=timeout)
         if client is not None:
             return Fluent(client=client)
@@ -367,7 +369,7 @@ class _CallbackSubscription:
 class _VariableContainer:
     """Encapsulates FluentControl variables"""
 
-    variables = {}
+    variables: dict[str, Any] = {}
 
     def __init__(self, client: Fluent):
         """Creates an encapsulation of the variables in FluentControl"""
