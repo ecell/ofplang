@@ -6,7 +6,8 @@ import pathlib
 import time
 import datetime
 import numpy
-from tecan import Fluent  # type: ignore
+from .__Fluent import Fluent
+# from tecan import Fluent  # type: ignore[import-untyped]
 
 logger = getLogger(__name__)
 

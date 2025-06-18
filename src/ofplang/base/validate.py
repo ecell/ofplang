@@ -11,8 +11,8 @@ import keyword
 import importlib.resources
 import pathlib
 
-import yamale  # type: ignore
-from yamale.validators import DefaultValidators, Validator  # type: ignore
+import yamale  # type: ignore[import-untyped]
+from yamale.validators import DefaultValidators, Validator  # type: ignore[import-untyped]
 
 from .utils import join_and
 from .entity_type import Process, EntityTypeLoader

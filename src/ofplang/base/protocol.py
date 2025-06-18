@@ -10,7 +10,7 @@ import dataclasses
 import sys
 import hashlib
 import io
-import yaml  # type: ignore
+import yaml
 
 logger = getLogger(__name__)
 

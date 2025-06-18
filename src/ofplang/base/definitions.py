@@ -3,7 +3,7 @@
 from logging import getLogger
 
 import pathlib
-import yaml  # type: ignore
+import yaml
 from copy import deepcopy
 from typing import IO
 import io
